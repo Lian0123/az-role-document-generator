@@ -2,6 +2,8 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
+const repoBase = '/az-role-document-generator/';
+
 export default defineConfig(({ command }) => ({
   plugins: [
     react(),
@@ -17,8 +19,8 @@ export default defineConfig(({ command }) => ({
         background_color: '#f5f8fc',
         display: 'standalone',
         orientation: 'portrait',
-        start_url: command === 'build' ? '/azure-role-document-generator/' : '/',
-        scope: command === 'build' ? '/azure-role-document-generator/' : '/',
+        start_url: command === 'build' ? repoBase : '/',
+        scope: command === 'build' ? repoBase : '/',
         lang: 'zh-TW',
         icons: [
           {
@@ -46,7 +48,7 @@ export default defineConfig(({ command }) => ({
       }
     })
   ],
-  base: command === 'build' ? '/azure-role-document-generator/' : '/',
+  base: command === 'build' ? repoBase : '/',
   test: {
     environment: 'node'
   }

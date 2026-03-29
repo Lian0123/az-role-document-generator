@@ -32,7 +32,7 @@ npm run build
 
 此專案已設定 Vite base path 與 GitHub Actions 工作流程。
 
-1. 將此資料夾推送到 GitHub Repository，名稱維持 azure-role-document-generator
+1. 將此資料夾推送到 GitHub Repository，名稱維持 az-role-document-generator
 2. 在 GitHub Repository 的 Settings > Pages 中，確認來源使用 GitHub Actions
 3. 推送到 main 分支後，Actions 會自動建置並部署到 GitHub Pages
 

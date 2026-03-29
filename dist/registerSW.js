@@ -1,1 +1,1 @@
-if('serviceWorker' in navigator) {window.addEventListener('load', () => {navigator.serviceWorker.register('/azure-role-document-generator/sw.js', { scope: '/azure-role-document-generator/' })})}
+if('serviceWorker' in navigator) {window.addEventListener('load', () => {navigator.serviceWorker.register('/az-role-document-generator/sw.js', { scope: '/az-role-document-generator/' })})}

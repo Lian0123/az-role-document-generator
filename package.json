@@ -1,9 +1,9 @@
 {
-  "name": "azure-role-document-generator",
+  "name": "az-role-document-generator",
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "homepage": "https://lianyongli.github.io/azure-role-document-generator/",
+  "homepage": "https://lian0123.github.io/az-role-document-generator/",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
