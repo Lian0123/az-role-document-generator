@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://lianyongli.github.io/azure-role-document-generator/sitemap.xml
