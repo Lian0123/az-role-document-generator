@@ -54,10 +54,10 @@ const iconMap = {
 
 const initialProfile = {
   projectName: '新建 Azure 平台專案',
-  department: '資訊服務處',
+  department: '資訊處',
   applicantName: '',
+  employeeId: '',
   applicantEmail: '',
-  owner: '',
   launchDate: '',
   publicResourceScope: '',
   externalIps: ''
@@ -71,6 +71,10 @@ const getVisibleOptions = (question, answers) => {
 
     if (answers.databaseNeed === 'postgres') {
       return question.options.filter((option) => option.value.startsWith('postgres-') || option.value === 'not-applicable');
+    }
+
+    if (answers.databaseNeed === 'mongo') {
+      return question.options.filter((option) => option.value.startsWith('mongo-') || option.value === 'not-applicable');
     }
 
     if (answers.databaseNeed === 'hybrid-db') {
@@ -89,6 +93,10 @@ const getVisibleOptions = (question, answers) => {
       return question.options.filter((option) => ['postgres-vcore', 'memory-optimized', 'not-applicable'].includes(option.value));
     }
 
+    if (answers.databaseNeed === 'mongo') {
+      return question.options.filter((option) => ['mongo-ru', 'mongo-vcore', 'memory-optimized', 'not-applicable'].includes(option.value));
+    }
+
     if (answers.databaseNeed === 'hybrid-db') {
       return question.options.filter((option) => option.value !== 'not-applicable');
     }
@@ -96,7 +104,7 @@ const getVisibleOptions = (question, answers) => {
     return question.options.filter((option) => option.value === 'not-applicable');
   }
 
-  if (question.id === 'databaseBackup' && !['sql', 'postgres', 'hybrid-db'].includes(answers.databaseNeed)) {
+  if (question.id === 'databaseBackup' && !['sql', 'postgres', 'mongo', 'hybrid-db'].includes(answers.databaseNeed)) {
     return question.options.filter((option) => option.value === 'not-applicable');
   }
 
@@ -106,6 +114,22 @@ const getVisibleOptions = (question, answers) => {
 
   if (question.id === 'queryStoreAccess' && !['sql', 'hybrid-db'].includes(answers.databaseNeed)) {
     return question.options.filter((option) => option.value === 'not-applicable');
+  }
+
+  if (question.id === 'appServicePlan' || question.id === 'appServiceRuntime') {
+    return ['app-service', 'mixed'].includes(answers.computePlatform)
+      ? question.options
+      : question.options.filter((option) => option.value === 'not-applicable');
+  }
+
+  if (question.id === 'functionPlan' || question.id === 'functionRuntime') {
+    return ['function-app', 'mixed'].includes(answers.computePlatform)
+      ? question.options
+      : question.options.filter((option) => option.value === 'not-applicable');
+  }
+
+  if (question.id === 'autoscaleMode' && answers.computePlatform === 'undecided') {
+    return question.options.filter((option) => option.value === 'manual-only' || option.value === 'not-applicable');
   }
 
   return question.options;
@@ -205,6 +229,20 @@ const renderBoxIcon = (icon, x, y) => {
           <path d={`M ${x + 7} ${y + 25} H ${x + 21} M ${x + 14} ${y + 21} V ${y + 25}`} stroke="#ffffff" strokeWidth="3" strokeLinecap="round" />
         </g>
       );
+    case 'queue':
+      return (
+        <g>
+          <rect x={x + 2} y={y + 6} width="24" height="18" rx="4" fill="none" stroke="#ffffff" strokeWidth="3" />
+          <path d={`M ${x + 8} ${y + 12} H ${x + 20} M ${x + 8} ${y + 18} H ${x + 18}`} stroke="#ffffff" strokeWidth="3" strokeLinecap="round" />
+        </g>
+      );
+    case 'cache':
+      return (
+        <g>
+          <path d={`M ${x + 4} ${y + 10} H ${x + 24} V ${y + 22} H ${x + 4} Z`} fill="none" stroke="#ffffff" strokeWidth="3" />
+          <path d={`M ${x + 8} ${y + 6} V ${y + 10} M ${x + 14} ${y + 6} V ${y + 10} M ${x + 20} ${y + 6} V ${y + 10} M ${x + 8} ${y + 22} V ${y + 26} M ${x + 14} ${y + 22} V ${y + 26} M ${x + 20} ${y + 22} V ${y + 26}`} stroke="#ffffff" strokeWidth="3" strokeLinecap="round" />
+        </g>
+      );
     default:
       return null;
   }
@@ -212,18 +250,28 @@ const renderBoxIcon = (icon, x, y) => {
 
 function ArchitectureSvg({ result, regionLabel, externalAccessLabel }) {
   const services = new Set(result.services.map((service) => service.id));
+  const usesFunctionsOnly = result.functionConfig.enabled && result.appServiceConfig.plan === '未指定 / 不使用 App Service';
+  const usesMixedCompute = result.functionConfig.enabled && result.appServiceConfig.plan !== '未指定 / 不使用 App Service';
+  const computeTitle = usesFunctionsOnly ? 'Azure Functions' : usesMixedCompute ? 'App Service + Functions' : 'Azure App Service';
+  const computeSubtitle = usesFunctionsOnly
+    ? `${result.functionConfig.plan} / ${result.functionConfig.runtime}`
+    : usesMixedCompute
+      ? `${result.appServiceConfig.plan} + ${result.functionConfig.plan}`
+      : `${result.appServiceConfig.plan} / ${result.appServiceConfig.runtime}`;
 
   const boxes = [
     { id: 'users', x: 24, y: 46, width: 150, height: 64, title: 'Users / Partner', subtitle: 'Internet / VPN', color: '#0f4c81', icon: 'users' },
     { id: 'edge', x: 212, y: 46, width: 170, height: 64, title: services.has('waf') ? 'WAF / Front Door' : 'Ingress Control', subtitle: regionLabel, color: '#1479c9', icon: 'shield' },
     { id: 'apim', x: 420, y: 46, width: 170, height: 64, title: services.has('apiManagement') ? 'Azure API Management' : 'API Access Layer', subtitle: services.has('apiManagement') ? 'Policy / Product / Subscription' : 'Direct App Access', color: '#008272', icon: 'api' },
-    { id: 'app', x: 628, y: 46, width: 180, height: 64, title: 'Azure App Service', subtitle: `${result.appServiceConfig.plan} / ${result.appServiceConfig.runtime}`, color: '#0b6bc7', icon: 'app' },
+    { id: 'app', x: 628, y: 46, width: 180, height: 64, title: computeTitle, subtitle: computeSubtitle, color: '#0b6bc7', icon: 'app' },
     { id: 'identity', x: 24, y: 170, width: 170, height: 64, title: 'Entra ID / MFA', subtitle: services.has('mfa') ? 'Conditional Access Enabled' : 'Identity Control', color: '#5c2d91', icon: 'identity' },
     { id: 'kv', x: 232, y: 170, width: 170, height: 64, title: 'Key Vault', subtitle: result.generatorProfile.mode, color: '#ca5010', icon: 'key' },
     { id: 'vnet', x: 440, y: 170, width: 170, height: 64, title: services.has('vnet') ? 'VNet / Private Endpoint' : 'Network Control', subtitle: externalAccessLabel || 'Network Policy', color: '#486991', icon: 'network' },
-    { id: 'sql', x: 648, y: 170, width: 180, height: 64, title: result.databasePlan?.engine || 'Relational Data', subtitle: result.databasePlan?.sku || 'Not Applicable', color: '#0063b1', icon: 'database' },
+    { id: 'sql', x: 648, y: 170, width: 180, height: 64, title: result.databasePlan?.engine || 'Data Layer', subtitle: result.databasePlan?.sku || 'Not Applicable', color: '#0063b1', icon: 'database' },
     { id: 'blob', x: 856, y: 170, width: 170, height: 64, title: services.has('storage') ? 'Blob Storage' : 'Storage Optional', subtitle: services.has('storage') ? 'Document / Media / Export' : 'No Blob Selected', color: '#2d7d9a', icon: 'storage' },
     { id: 'ai', x: 856, y: 46, width: 170, height: 64, title: services.has('openAi') ? 'Azure OpenAI / AI Search' : 'AI Layer', subtitle: services.has('openAi') ? 'RAG / Generator' : 'No AI Required', color: '#7fba00', icon: 'ai' },
+    { id: 'msg', x: 24, y: 294, width: 170, height: 64, title: services.has('messaging') ? 'Messaging Services' : 'Messaging Optional', subtitle: services.has('messaging') ? 'Queue / Topic / Event' : 'No Queue Selected', color: '#7a4f01', icon: 'queue' },
+    { id: 'cache', x: 232, y: 294, width: 150, height: 64, title: services.has('redis') ? 'Azure Cache for Redis' : 'Cache Optional', subtitle: services.has('redis') ? 'Session / Hot Data' : 'No Cache Selected', color: '#c23934', icon: 'cache' },
     { id: 'ops', x: 420, y: 294, width: 190, height: 64, title: 'Azure DevOps / ARM', subtitle: services.has('azureDevOps') || services.has('azureResourceManager') ? 'Pipeline / IaC / RBAC' : 'Governance Ready', color: '#8764b8', icon: 'ops' },
     { id: 'monitor', x: 648, y: 294, width: 180, height: 64, title: services.has('logAnalytics') ? 'App Insights + Log Analytics' : 'Monitoring Layer', subtitle: `${result.costEstimate.currency} ${result.costEstimate.low}-${result.costEstimate.high} / month`, color: '#004578', icon: 'monitor' }
   ];
@@ -237,6 +285,8 @@ function ArchitectureSvg({ result, regionLabel, externalAccessLabel }) {
     ['app', 'sql'],
     ['app', 'blob'],
     ['app', 'ai'],
+    ['app', 'msg'],
+    ['app', 'cache'],
     ['vnet', 'app'],
     ['ops', 'app'],
     ['app', 'monitor']
@@ -297,8 +347,8 @@ function PrintableReport({ profile, result, ui, regionDisplay, externalAccessDis
           <div><strong>{ui.projectName}</strong><span>{profile.projectName || ui.notSpecified}</span></div>
           <div><strong>{ui.department}</strong><span>{profile.department || ui.notSpecified}</span></div>
           <div><strong>{ui.applicantName}</strong><span>{profile.applicantName || ui.notSpecified}</span></div>
+          <div><strong>{ui.employeeId}</strong><span>{profile.employeeId || ui.notSpecified}</span></div>
           <div><strong>{ui.applicantEmail}</strong><span>{profile.applicantEmail || ui.notSpecified}</span></div>
-          <div><strong>{ui.owner}</strong><span>{profile.owner || ui.notSpecified}</span></div>
           <div><strong>{ui.launchDate}</strong><span>{profile.launchDate || ui.notSpecified}</span></div>
           <div><strong>{ui.cloudRegion}</strong><span>{regionDisplay || result.regionLabel}</span></div>
           <div><strong>{ui.applicationStatus}</strong><span>{applicationStatusDisplay}</span></div>
@@ -388,6 +438,7 @@ function App() {
     const items = [
       projectProfile.projectName ? `${ui.projectName}: ${projectProfile.projectName}` : null,
       projectProfile.department ? `${ui.department}: ${projectProfile.department}` : null,
+      projectProfile.employeeId ? `${ui.employeeId}: ${projectProfile.employeeId}` : null,
       `${ui.applicationStatus}: ${applicationStatusDisplay}`,
       `${ui.readiness}: ${result.readiness}%`,
       `${ui.cloudRegion}: ${regionDisplay}`,
@@ -490,6 +541,18 @@ function App() {
           };
         }
 
+        if (optionValue === 'mongo') {
+          return {
+            ...current,
+            databaseNeed: optionValue,
+            databaseTier: current.databaseTier?.startsWith('mongo-') ? current.databaseTier : '',
+            databasePerformance: ['mongo-ru', 'mongo-vcore', 'memory-optimized'].includes(current.databasePerformance) ? current.databasePerformance : '',
+            databaseBackup: current.databaseBackup === 'not-applicable' ? '' : current.databaseBackup,
+            databaseAccess: 'not-applicable',
+            queryStoreAccess: 'not-applicable'
+          };
+        }
+
         return {
           ...current,
           databaseNeed: optionValue,
@@ -498,6 +561,51 @@ function App() {
           databaseBackup: optionValue === 'hybrid-db' ? current.databaseBackup : 'not-applicable',
           databaseAccess: optionValue === 'hybrid-db' ? current.databaseAccess : 'not-applicable',
           queryStoreAccess: optionValue === 'hybrid-db' ? current.queryStoreAccess : 'not-applicable'
+        };
+      }
+
+      if (questionId === 'computePlatform') {
+        if (optionValue === 'app-service') {
+          return {
+            ...current,
+            computePlatform: optionValue,
+            appServicePlan: current.appServicePlan === 'not-applicable' ? '' : current.appServicePlan,
+            appServiceRuntime: current.appServiceRuntime === 'not-applicable' ? '' : current.appServiceRuntime,
+            functionPlan: 'not-applicable',
+            functionRuntime: 'not-applicable'
+          };
+        }
+
+        if (optionValue === 'function-app') {
+          return {
+            ...current,
+            computePlatform: optionValue,
+            appServicePlan: 'not-applicable',
+            appServiceRuntime: 'not-applicable',
+            functionPlan: current.functionPlan === 'not-applicable' ? '' : current.functionPlan,
+            functionRuntime: current.functionRuntime === 'not-applicable' ? '' : current.functionRuntime
+          };
+        }
+
+        if (optionValue === 'mixed') {
+          return {
+            ...current,
+            computePlatform: optionValue,
+            appServicePlan: current.appServicePlan === 'not-applicable' ? '' : current.appServicePlan,
+            appServiceRuntime: current.appServiceRuntime === 'not-applicable' ? '' : current.appServiceRuntime,
+            functionPlan: current.functionPlan === 'not-applicable' ? '' : current.functionPlan,
+            functionRuntime: current.functionRuntime === 'not-applicable' ? '' : current.functionRuntime
+          };
+        }
+
+        return {
+          ...current,
+          computePlatform: optionValue,
+          appServicePlan: 'not-applicable',
+          appServiceRuntime: 'not-applicable',
+          functionPlan: 'not-applicable',
+          functionRuntime: 'not-applicable',
+          autoscaleMode: current.autoscaleMode || 'not-applicable'
         };
       }
 
@@ -604,6 +712,21 @@ function App() {
           <h1>{ui.heroTitle}</h1>
           <p>{ui.heroDescription}</p>
 
+          <div className="hero-highlights">
+            <article>
+              <strong>Enterprise Intake</strong>
+              <span>整合資源申請、RBAC、成本與治理輸出</span>
+            </article>
+            <article>
+              <strong>Review Ready</strong>
+              <span>可直接產出 Markdown、PDF 與架構預覽</span>
+            </article>
+            <article>
+              <strong>Secure Delivery</strong>
+              <span>支援 PWA、離線快取、多語系與 RWD</span>
+            </article>
+          </div>
+
           <div className="hero-actions">
             <button type="button" className="primary-button" onClick={exportMarkdown}>
               <Download size={18} />
@@ -691,8 +814,16 @@ function App() {
               <span className="eyebrow">{ui.projectIntake}</span>
               <h2>{ui.basicInfo}</h2>
             </div>
-            <span className="section-tag">RWD / GitHub Pages Actions</span>
+            <span className="section-tag">Build Azure Plan</span>
           </div>
+
+          <section className="intake-banner">
+            <div>
+              <strong>Enterprise Request Context</strong>
+              <span>請完整填寫專案識別、申請人與員工資訊，讓後續權限審核與資源交付可直接引用。</span>
+            </div>
+            <div className="intake-banner-chip">Azure RBAC Intake</div>
+          </section>
 
           <div className="profile-grid">
             <label>
@@ -708,12 +839,12 @@ function App() {
               <input value={projectProfile.applicantName} onChange={(event) => handleProfileChange('applicantName', event.target.value)} placeholder={ui.draftApplicant} />
             </label>
             <label>
-              <span>{ui.applicantEmail}</span>
-              <input type="email" value={projectProfile.applicantEmail} onChange={(event) => handleProfileChange('applicantEmail', event.target.value)} placeholder={ui.draftEmail} />
+              <span>{ui.employeeId}</span>
+              <input value={projectProfile.employeeId} onChange={(event) => handleProfileChange('employeeId', event.target.value)} placeholder={ui.draftEmployeeId} />
             </label>
             <label>
-              <span>{ui.owner}</span>
-              <input value={projectProfile.owner} onChange={(event) => handleProfileChange('owner', event.target.value)} placeholder={ui.draftOwner} />
+              <span>{ui.applicantEmail}</span>
+              <input type="email" value={projectProfile.applicantEmail} onChange={(event) => handleProfileChange('applicantEmail', event.target.value)} placeholder={ui.draftEmail} />
             </label>
             <label>
               <span>{ui.launchDate}</span>
@@ -863,6 +994,20 @@ function App() {
                   <span className="priority priority-建議">{result.appServiceConfig.plan}</span>
                 </div>
                 <small>{`Runtime: ${result.appServiceConfig.runtime}`}</small>
+              </article>
+              <article className="insight-card compact-card">
+                <div className="insight-title-row">
+                  <strong>Azure Functions</strong>
+                  <span className="priority priority-建議">{result.functionConfig.plan}</span>
+                </div>
+                <small>{`Runtime: ${result.functionConfig.runtime}`}</small>
+              </article>
+              <article className="insight-card compact-card">
+                <div className="insight-title-row">
+                  <strong>Auto Scale</strong>
+                  <span className="priority priority-建議">{result.autoscaleProfile.mode}</span>
+                </div>
+                <small>{result.autoscaleProfile.guidance}</small>
               </article>
               <article className="insight-card compact-card">
                 <div className="insight-title-row">

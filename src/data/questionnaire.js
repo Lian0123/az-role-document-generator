@@ -4,6 +4,11 @@ export const roleCatalog = {
     scope: 'Azure App Service',
     justification: '部署與維運 Web App、API 與應用程式設定。'
   },
+  functionAppContributor: {
+    name: 'Website Contributor',
+    scope: 'Azure Functions',
+    justification: '部署與維運 Function App、App Settings、觸發器與函式版本。'
+  },
   apiManagementServiceContributor: {
     name: 'API Management Service Contributor',
     scope: 'Azure API Management',
@@ -44,6 +49,16 @@ export const roleCatalog = {
     scope: 'Azure Database for PostgreSQL',
     justification: '管理 PostgreSQL 伺服器、參數與網路存取。'
   },
+  cosmosDbOperator: {
+    name: 'Cosmos DB Operator',
+    scope: 'Azure Cosmos DB for MongoDB',
+    justification: '建立 MongoDB API 帳戶、調整網路與備援設定。'
+  },
+  cosmosDbDataContributor: {
+    name: 'Cosmos DB Built-in Data Contributor',
+    scope: 'Azure Cosmos DB for MongoDB',
+    justification: '管理資料庫、集合與文件資料的讀寫。'
+  },
   storageBlobDataReader: {
     name: 'Storage Blob Data Reader',
     scope: 'Azure Storage Blob',
@@ -83,6 +98,26 @@ export const roleCatalog = {
     name: 'Cognitive Services Contributor',
     scope: 'Azure AI Services',
     justification: '建立 AI 資源、部署模型與設定內容安全規則。'
+  },
+  serviceBusDataSender: {
+    name: 'Azure Service Bus Data Sender',
+    scope: 'Azure Messaging Services',
+    justification: '允許應用程式發送 queue 或 topic 訊息。'
+  },
+  serviceBusDataReceiver: {
+    name: 'Azure Service Bus Data Receiver',
+    scope: 'Azure Messaging Services',
+    justification: '允許背景工作或整合端接收 queue 或 subscription 訊息。'
+  },
+  serviceBusDataOwner: {
+    name: 'Azure Service Bus Data Owner',
+    scope: 'Azure Messaging Services',
+    justification: '管理 queue、topic、subscription 與存取權。'
+  },
+  redisContributor: {
+    name: 'Redis Cache Contributor',
+    scope: 'Azure Cache for Redis',
+    justification: '建立與調整 Redis SKU、網路與存取設定。'
   },
   containerRegistryReader: {
     name: 'AcrPull',
@@ -137,6 +172,11 @@ export const serviceCatalog = {
     category: '應用運算',
     description: '託管前後端 Web/API，適合快速交付企業應用。'
   },
+  functionApp: {
+    name: 'Azure Functions',
+    category: '應用運算',
+    description: '以事件驅動與 Serverless 方式執行背景作業、Webhook 與 API。'
+  },
   apiManagement: {
     name: 'Azure API Management',
     category: 'API 閘道',
@@ -152,10 +192,30 @@ export const serviceCatalog = {
     category: '資料庫',
     description: '適用開源應用、彈性 schema 與內容平台。'
   },
+  cosmosMongo: {
+    name: 'Azure Cosmos DB for MongoDB',
+    category: '資料庫',
+    description: '支援 MongoDB API 的文件型資料庫，適合彈性 schema 與高擴充讀寫。'
+  },
   storage: {
     name: 'Azure Storage Account',
     category: '儲存',
     description: '存放 Blob、匯出報表、靜態內容與知識庫檔案。'
+  },
+  messaging: {
+    name: 'Azure Messaging Services',
+    category: '整合',
+    description: '提供 Queue、Topic、Pub/Sub 與非同步整合流程。'
+  },
+  redis: {
+    name: 'Azure Cache for Redis',
+    category: '效能',
+    description: '提供快取、Session、熱資料與低延遲存取能力。'
+  },
+  autoscale: {
+    name: 'Azure Monitor Autoscale',
+    category: '容量治理',
+    description: '依流量、排程或佇列深度自動調整計算資源。'
   },
   keyVault: {
     name: 'Azure Key Vault',
@@ -261,6 +321,27 @@ export const databaseTierCatalog = {
     sizing: '50 DTUs / 250 GB',
     note: '適合關鍵業務、較高併發與查詢壓力。'
   },
+  'sql-s3': {
+    label: 'Azure SQL S3',
+    serviceId: 'sqlDatabase',
+    sku: 'S3',
+    sizing: '100 DTUs / 1 TB',
+    note: '適合高交易量、核心業務與較大資料量需求。'
+  },
+  'sql-gp-vcore': {
+    label: 'Azure SQL General Purpose vCore',
+    serviceId: 'sqlDatabase',
+    sku: 'GP_Gen5_2',
+    sizing: '2 vCores / 10.4 GB RAM / General Purpose',
+    note: '適合需精準控制 CPU / 記憶體與授權成本的正式環境。'
+  },
+  'sql-bc-vcore': {
+    label: 'Azure SQL Business Critical vCore',
+    serviceId: 'sqlDatabase',
+    sku: 'BC_Gen5_4',
+    sizing: '4 vCores / 20.8 GB RAM / Business Critical',
+    note: '適合低延遲、高可用與關鍵交易系統。'
+  },
   'postgres-b1ms': {
     label: 'PostgreSQL Burstable B1ms',
     serviceId: 'postgresql',
@@ -281,15 +362,41 @@ export const databaseTierCatalog = {
     sku: 'MO_E2s_v3',
     sizing: '2 vCores / Memory Optimized',
     note: '適合高記憶體需求、搜尋或高併發工作負載。'
+  },
+  'mongo-serverless': {
+    label: 'MongoDB Serverless',
+    serviceId: 'cosmosMongo',
+    sku: 'Serverless',
+    sizing: 'Consumption / 自動依請求擴展',
+    note: '適合波動流量、PoC 或低維運的文件型工作負載。'
+  },
+  'mongo-m30': {
+    label: 'MongoDB M30 vCore Cluster',
+    serviceId: 'cosmosMongo',
+    sku: 'M30',
+    sizing: '2 vCores / 8 GB RAM',
+    note: '適合一般正式環境與 API 後端文件資料。'
+  },
+  'mongo-m50': {
+    label: 'MongoDB M50 vCore Cluster',
+    serviceId: 'cosmosMongo',
+    sku: 'M50',
+    sizing: '4 vCores / 16 GB RAM',
+    note: '適合高併發、較大工作集與較高吞吐需求。'
   }
 };
 
 export const servicePermissionTemplates = {
   appService: ['appServiceContributor', 'planContributor', 'reader'],
+  functionApp: ['functionAppContributor', 'reader'],
   apiManagement: ['apiManagementServiceContributor', 'reader'],
   sqlDatabase: ['sqlContributor', 'sqlDbReader', 'sqlDbWriter', 'sqlDbDdlAdmin', 'dbOwner'],
   postgresql: ['postgresContributor', 'reader'],
+  cosmosMongo: ['cosmosDbOperator', 'cosmosDbDataContributor', 'reader'],
   storage: ['storageBlobDataReader', 'storageBlobDataContributor', 'reader'],
+  messaging: ['serviceBusDataSender', 'serviceBusDataReceiver', 'serviceBusDataOwner'],
+  redis: ['redisContributor', 'reader'],
+  autoscale: ['planContributor', 'monitoringContributor'],
   keyVault: ['keyVaultSecretsOfficer', 'keyVaultSecretsUser'],
   appInsights: ['monitoringContributor', 'reader'],
   logAnalytics: ['monitoringContributor', 'securityReader'],
@@ -466,6 +573,13 @@ export const questionnaire = [
         roles: ['postgresContributor']
       },
       {
+        value: 'mongo',
+        label: '文件型資料庫（MongoDB）',
+        description: '適合彈性 schema、事件資料與高擴充讀寫',
+        services: ['cosmosMongo'],
+        roles: ['cosmosDbOperator', 'cosmosDbDataContributor']
+      },
+      {
         value: 'none',
         label: '暫無結構化資料庫需求',
         services: ['storage'],
@@ -473,9 +587,9 @@ export const questionnaire = [
       },
       {
         value: 'hybrid-db',
-        label: '同時需要 SQL 與非結構化儲存',
-        services: ['sqlDatabase', 'storage'],
-        roles: ['sqlContributor', 'storageBlobDataContributor']
+        label: '同時需要 SQL、NoSQL 與非結構化儲存',
+        services: ['sqlDatabase', 'cosmosMongo', 'storage'],
+        roles: ['sqlContributor', 'cosmosDbOperator', 'storageBlobDataContributor']
       }
     ]
   },
@@ -517,6 +631,27 @@ export const questionnaire = [
         roles: ['sqlContributor', 'monitoringContributor']
       },
       {
+        value: 'sql-s3',
+        label: 'Azure SQL S3',
+        description: '高交易量與較大容量需求',
+        services: ['sqlDatabase'],
+        roles: ['sqlContributor', 'monitoringContributor']
+      },
+      {
+        value: 'sql-gp-vcore',
+        label: 'Azure SQL General Purpose vCore',
+        description: 'vCore 模型的一般正式環境',
+        services: ['sqlDatabase'],
+        roles: ['sqlContributor', 'monitoringContributor']
+      },
+      {
+        value: 'sql-bc-vcore',
+        label: 'Azure SQL Business Critical vCore',
+        description: '低延遲高可用的關鍵業務方案',
+        services: ['sqlDatabase'],
+        roles: ['sqlContributor', 'dbOwner', 'monitoringContributor']
+      },
+      {
         value: 'postgres-b1ms',
         label: 'PostgreSQL B1ms',
         description: '開發 / 測試 / 內部輕量',
@@ -536,6 +671,27 @@ export const questionnaire = [
         description: '高併發 / 高記憶體需求',
         services: ['postgresql'],
         roles: ['postgresContributor', 'monitoringContributor']
+      },
+      {
+        value: 'mongo-serverless',
+        label: 'MongoDB Serverless',
+        description: '請求驅動、自動擴展的文件型資料庫',
+        services: ['cosmosMongo'],
+        roles: ['cosmosDbOperator', 'cosmosDbDataContributor']
+      },
+      {
+        value: 'mongo-m30',
+        label: 'MongoDB M30',
+        description: '2 vCores / 8 GB RAM，一般正式環境',
+        services: ['cosmosMongo'],
+        roles: ['cosmosDbOperator', 'cosmosDbDataContributor']
+      },
+      {
+        value: 'mongo-m50',
+        label: 'MongoDB M50',
+        description: '4 vCores / 16 GB RAM，高併發正式環境',
+        services: ['cosmosMongo'],
+        roles: ['cosmosDbOperator', 'cosmosDbDataContributor', 'monitoringContributor']
       },
       {
         value: 'not-applicable',
@@ -617,11 +773,25 @@ export const questionnaire = [
         roles: ['postgresContributor']
       },
       {
+        value: 'mongo-ru',
+        label: 'MongoDB RU 模型',
+        description: '以 RU/s 規劃文件寫入、查詢與吞吐量',
+        services: ['cosmosMongo'],
+        roles: ['cosmosDbOperator']
+      },
+      {
+        value: 'mongo-vcore',
+        label: 'MongoDB vCore 模型',
+        description: '以 vCore 與記憶體規劃文件型資料庫資源',
+        services: ['cosmosMongo'],
+        roles: ['cosmosDbOperator', 'monitoringContributor']
+      },
+      {
         value: 'memory-optimized',
         label: '高記憶體 / 高併發模型',
         description: '適合 Memory Optimized 或查詢密集型資料庫',
-        services: ['postgresql', 'sqlDatabase', 'appInsights'],
-        roles: ['postgresContributor', 'sqlContributor', 'monitoringContributor']
+        services: ['postgresql', 'sqlDatabase', 'cosmosMongo', 'appInsights'],
+        roles: ['postgresContributor', 'sqlContributor', 'cosmosDbOperator', 'monitoringContributor']
       },
       {
         value: 'not-applicable',
@@ -739,6 +909,47 @@ export const questionnaire = [
     ]
   },
   {
+    id: 'computePlatform',
+    section: '應用與平台',
+    title: '主要運算平台為何？',
+    type: 'single',
+    references: [
+      {
+        title: 'Azure App Service 與 Azure Functions 比較',
+        url: 'https://learn.microsoft.com/azure/azure-functions/functions-compare-logic-apps-ms-flow-webjobs'
+      }
+    ],
+    options: [
+      {
+        value: 'app-service',
+        label: 'Azure App Service 為主',
+        description: '適合長時運行的 Web、API 與企業平台',
+        services: ['appService'],
+        roles: ['appServiceContributor', 'planContributor']
+      },
+      {
+        value: 'function-app',
+        label: 'Azure Functions 為主',
+        description: '適合事件驅動、排程、Webhook 與背景作業',
+        services: ['functionApp'],
+        roles: ['functionAppContributor']
+      },
+      {
+        value: 'mixed',
+        label: 'App Service + Azure Functions 混合',
+        description: '前台/API 與背景事件處理同時存在',
+        services: ['appService', 'functionApp'],
+        roles: ['appServiceContributor', 'functionAppContributor', 'planContributor']
+      },
+      {
+        value: 'undecided',
+        label: '尚未決定 / 由平台建議',
+        services: [],
+        roles: []
+      }
+    ]
+  },
+  {
     id: 'appServicePlan',
     section: '應用與平台',
     title: 'App Service Plan 預計使用哪個等級？',
@@ -779,6 +990,125 @@ export const questionnaire = [
       { value: 'static-web', label: 'Static + API', description: '前端靜態頁面搭配後端 API', services: ['appService', 'storage'], roles: ['appServiceContributor', 'storageBlobDataReader'] },
       { value: 'container', label: 'Custom Container', description: '需要自訂 runtime 與映像控制', services: ['appService', 'containerRegistry'], roles: ['appServiceContributor', 'containerRegistryReader'] },
       { value: 'not-applicable', label: '尚未決定 / 不使用 App Service Runtime', description: '保留其他部署方式或稍後決定', services: [], roles: [] }
+    ]
+  },
+  {
+    id: 'functionPlan',
+    section: '應用與平台',
+    title: 'Azure Functions Hosting Plan 為何？',
+    type: 'single',
+    references: [
+      {
+        title: 'Azure Functions Hosting Options',
+        url: 'https://learn.microsoft.com/azure/azure-functions/functions-scale'
+      }
+    ],
+    options: [
+      { value: 'consumption', label: 'Consumption', description: '依執行次數計費，適合波動流量', services: ['functionApp'], roles: ['functionAppContributor'] },
+      { value: 'premium', label: 'Premium', description: '需要 VNet、預熱實例與較快啟動', services: ['functionApp', 'vnet'], roles: ['functionAppContributor', 'networkContributor'] },
+      { value: 'dedicated', label: 'Dedicated (App Service Plan)', description: '與既有 App Service Plan 共用容量', services: ['functionApp', 'appService'], roles: ['functionAppContributor', 'planContributor'] },
+      { value: 'not-applicable', label: '不適用 / 尚未決定', services: [], roles: [] }
+    ]
+  },
+  {
+    id: 'functionRuntime',
+    section: '應用與平台',
+    title: 'Azure Functions Runtime 需求為何？',
+    type: 'single',
+    references: [
+      {
+        title: 'Azure Functions Supported Languages',
+        url: 'https://learn.microsoft.com/azure/azure-functions/supported-languages'
+      }
+    ],
+    options: [
+      { value: 'dotnet-isolated', label: '.NET Isolated', description: '適合企業整合與長期維護', services: ['functionApp'], roles: ['functionAppContributor'] },
+      { value: 'node', label: 'Node.js', description: '適合事件驅動 API 與 webhook', services: ['functionApp'], roles: ['functionAppContributor'] },
+      { value: 'python', label: 'Python', description: '適合資料處理、AI 與自動化', services: ['functionApp'], roles: ['functionAppContributor'] },
+      { value: 'powershell', label: 'PowerShell', description: '適合平台治理與自動化工作', services: ['functionApp'], roles: ['functionAppContributor'] },
+      { value: 'not-applicable', label: '不適用 / 尚未決定', services: [], roles: [] }
+    ]
+  },
+  {
+    id: 'messagingService',
+    section: '應用與平台',
+    title: '是否需要 Azure Messaging Services？',
+    type: 'single',
+    references: [
+      {
+        title: 'Azure Messaging Services Overview',
+        url: 'https://learn.microsoft.com/azure/service-bus-messaging/compare-messaging-services'
+      }
+    ],
+    options: [
+      {
+        value: 'service-bus-queue',
+        label: 'Service Bus Queue',
+        description: '背景工作、排程處理與可靠訊息佇列',
+        services: ['messaging'],
+        roles: ['serviceBusDataSender', 'serviceBusDataReceiver']
+      },
+      {
+        value: 'service-bus-topic',
+        label: 'Service Bus Topic / Subscription',
+        description: '多系統訂閱與事件扇出',
+        services: ['messaging'],
+        roles: ['serviceBusDataSender', 'serviceBusDataReceiver', 'serviceBusDataOwner']
+      },
+      {
+        value: 'hybrid-messaging',
+        label: 'Queue + Topic 混合',
+        description: '同時需要非同步處理與事件廣播',
+        services: ['messaging', 'functionApp'],
+        roles: ['serviceBusDataSender', 'serviceBusDataReceiver', 'serviceBusDataOwner', 'functionAppContributor']
+      },
+      {
+        value: 'none',
+        label: '暫不需要 Messaging',
+        services: [],
+        roles: []
+      }
+    ]
+  },
+  {
+    id: 'cacheService',
+    section: '應用與平台',
+    title: '是否需要 Azure Cache for Redis？',
+    type: 'single',
+    references: [
+      {
+        title: 'Azure Cache for Redis Overview',
+        url: 'https://learn.microsoft.com/azure/azure-cache-for-redis/cache-overview'
+      }
+    ],
+    options: [
+      {
+        value: 'redis-basic',
+        label: 'Redis Basic',
+        description: 'PoC、低流量快取或暫存 Session',
+        services: ['redis'],
+        roles: ['redisContributor']
+      },
+      {
+        value: 'redis-standard',
+        label: 'Redis Standard',
+        description: '一般正式環境的快取需求',
+        services: ['redis'],
+        roles: ['redisContributor', 'reader']
+      },
+      {
+        value: 'redis-premium',
+        label: 'Redis Premium',
+        description: '需要較佳隔離、持久化或 VNet 整合',
+        services: ['redis', 'vnet'],
+        roles: ['redisContributor', 'networkContributor']
+      },
+      {
+        value: 'none',
+        label: '暫不需要 Redis',
+        services: [],
+        roles: []
+      }
     ]
   },
   {
@@ -1200,6 +1530,54 @@ export const questionnaire = [
         value: 'none',
         label: '暫不需要額外維運能力',
         description: '先以基本監控或平台預設交付',
+        services: [],
+        roles: []
+      }
+    ]
+  },
+  {
+    id: 'autoscaleMode',
+    section: '容量與可用性',
+    title: '是否需要 Auto Scale 設定？',
+    type: 'single',
+    references: [
+      {
+        title: 'Azure Monitor Autoscale Overview',
+        url: 'https://learn.microsoft.com/azure/azure-monitor/autoscale/autoscale-overview'
+      }
+    ],
+    options: [
+      {
+        value: 'manual-only',
+        label: '不啟用 Auto Scale，手動調整容量',
+        description: '容量變更由平台或維運人員手動處理',
+        services: [],
+        roles: ['planContributor']
+      },
+      {
+        value: 'scheduled-scale',
+        label: '依排程自動擴縮',
+        description: '配合尖峰時段或營運時段擴縮',
+        services: ['autoscale'],
+        roles: ['planContributor', 'monitoringContributor']
+      },
+      {
+        value: 'metric-based-scale',
+        label: '依 CPU / Queue / Request 指標自動擴縮',
+        description: '適合 API、背景工作與波動流量平台',
+        services: ['autoscale', 'appInsights'],
+        roles: ['planContributor', 'monitoringContributor']
+      },
+      {
+        value: 'serverless-burst',
+        label: '依事件量自動擴展（Serverless）',
+        description: '適合 Azure Functions 或訊息驅動工作負載',
+        services: ['autoscale', 'functionApp', 'messaging'],
+        roles: ['functionAppContributor', 'monitoringContributor', 'serviceBusDataReceiver']
+      },
+      {
+        value: 'not-applicable',
+        label: '不適用 / 尚未決定',
         services: [],
         roles: []
       }

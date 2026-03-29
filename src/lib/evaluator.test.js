@@ -80,8 +80,8 @@ describe('evaluateSurvey', () => {
         projectName: '知識平台',
         department: '資訊處',
         applicantName: '李小華',
+        employeeId: 'EMP-1024',
         applicantEmail: 'owner@example.com',
-        owner: '王小明',
         launchDate: '2026-07-01',
         publicResourceScope: '內部文件入口',
         externalIps: '10.10.10.10'
@@ -91,6 +91,7 @@ describe('evaluateSurvey', () => {
 
     expect(markdown).toContain('# Azure 服務與權限平台申請單');
     expect(markdown).toContain('知識平台');
+    expect(markdown).toContain('EMP-1024');
     expect(markdown).toContain('PostgreSQL General Purpose');
     expect(markdown).toContain('效能模型：PostgreSQL vCore 模型');
     expect(markdown).toContain('備份策略：Point-in-Time Restore');
@@ -98,5 +99,57 @@ describe('evaluateSurvey', () => {
     expect(markdown).toContain('安全控制');
     expect(markdown).toContain('技術參考');
     expect(result.referenceLinks.length).toBeGreaterThan(0);
+  });
+
+  it('可評估 Functions、MongoDB、Messaging、Redis 與 Auto Scale', () => {
+    const result = evaluateSurvey({
+      projectType: 'api-platform',
+      region: 'taiwan',
+      billingPriority: 'resilient',
+      dataSensitivity: 'confidential',
+      databaseNeed: 'mongo',
+      databaseTier: 'mongo-m50',
+      databasePerformance: 'mongo-vcore',
+      databaseBackup: 'geo-redundant',
+      queryStoreAccess: 'not-applicable',
+      blobUsage: ['private-upload'],
+      computePlatform: 'mixed',
+      appServicePlan: 'p1v3',
+      appServiceRuntime: 'node',
+      functionPlan: 'premium',
+      functionRuntime: 'python',
+      messagingService: 'hybrid-messaging',
+      cacheService: 'redis-premium',
+      databaseAccess: 'not-applicable',
+      internetExposure: 'hybrid',
+      externalAccessControl: 'partner-vpn',
+      apiManagementNeed: 'hybrid-api',
+      identityModel: 'b2b',
+      secretAccess: 'hybrid',
+      governanceControls: ['azure-devops', 'arm-rbac', 'mfa'],
+      generatorAccess: 'key-and-url',
+      aiCapability: ['agent'],
+      opsNeeds: ['monitoring', 'api-observability'],
+      autoscaleMode: 'serverless-burst',
+      scaleExpectation: 'global-multi-region'
+    });
+
+    const serviceNames = result.services.map((service) => service.name);
+    const roleNames = result.permissions.map((permission) => permission.name);
+
+    expect(serviceNames).toContain('Azure Functions');
+    expect(serviceNames).toContain('Azure Cosmos DB for MongoDB');
+    expect(serviceNames).toContain('Azure Messaging Services');
+    expect(serviceNames).toContain('Azure Cache for Redis');
+    expect(serviceNames).toContain('Azure Monitor Autoscale');
+    expect(roleNames).toContain('Cosmos DB Built-in Data Contributor');
+    expect(roleNames).toContain('Azure Service Bus Data Owner');
+    expect(roleNames).toContain('Redis Cache Contributor');
+    expect(result.databasePlan?.engine).toBe('Azure Cosmos DB for MongoDB');
+    expect(result.databasePlan?.sizing).toContain('16 GB RAM');
+    expect(result.functionConfig.enabled).toBe(true);
+    expect(result.functionConfig.plan).toBe('Premium');
+    expect(result.autoscaleProfile.mode).toBe('依事件量自動擴展（Serverless）');
+    expect(result.costEstimate.high).toBeGreaterThan(result.costEstimate.low);
   });
 });

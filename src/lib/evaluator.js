@@ -28,8 +28,13 @@ const scoreWeight = {
   databaseBackup: 2,
   queryStoreAccess: 2,
   blobUsage: 2,
+  computePlatform: 3,
   appServicePlan: 3,
   appServiceRuntime: 2,
+  functionPlan: 2,
+  functionRuntime: 2,
+  messagingService: 2,
+  cacheService: 2,
   databaseAccess: 3,
   internetExposure: 2,
   externalAccessControl: 2,
@@ -39,6 +44,7 @@ const scoreWeight = {
   generatorAccess: 2,
   aiCapability: 3,
   opsNeeds: 2,
+  autoscaleMode: 2,
   scaleExpectation: 2
 };
 
@@ -94,6 +100,13 @@ const runtimeLabelMap = {
   'not-applicable': '未指定 / 不適用'
 };
 
+const computePlatformLabelMap = {
+  'app-service': 'Azure App Service 為主',
+  'function-app': 'Azure Functions 為主',
+  mixed: 'App Service + Azure Functions 混合',
+  undecided: '尚未決定 / 由平台建議'
+};
+
 const planLabelMap = {
   b1: 'B1',
   s1: 'S1',
@@ -102,6 +115,21 @@ const planLabelMap = {
   p2v3: 'P2v3',
   'container-plan': 'Container on App Service',
   'not-applicable': '未指定 / 不使用 App Service'
+};
+
+const functionPlanLabelMap = {
+  consumption: 'Consumption',
+  premium: 'Premium',
+  dedicated: 'Dedicated (App Service Plan)',
+  'not-applicable': '未指定 / 不使用 Azure Functions'
+};
+
+const functionRuntimeLabelMap = {
+  'dotnet-isolated': '.NET Isolated',
+  node: 'Node.js',
+  python: 'Python',
+  powershell: 'PowerShell',
+  'not-applicable': '未指定 / 不適用'
 };
 
 const generatorLabelMap = {
@@ -118,10 +146,26 @@ const externalAccessLabelMap = {
   'partner-vpn': '合作夥伴經 VPN / 專線存取'
 };
 
+const messagingLabelMap = {
+  'service-bus-queue': 'Service Bus Queue',
+  'service-bus-topic': 'Service Bus Topic / Subscription',
+  'hybrid-messaging': 'Queue + Topic 混合',
+  none: '不使用 Messaging'
+};
+
+const cacheLabelMap = {
+  'redis-basic': 'Redis Basic',
+  'redis-standard': 'Redis Standard',
+  'redis-premium': 'Redis Premium',
+  none: '不使用 Redis'
+};
+
 const databasePerformanceLabelMap = {
   'sql-dtu': 'Azure SQL DTU 模型',
   'sql-vcore': 'Azure SQL vCore 模型',
   'postgres-vcore': 'PostgreSQL vCore 模型',
+  'mongo-ru': 'MongoDB RU 模型',
+  'mongo-vcore': 'MongoDB vCore 模型',
   'memory-optimized': '高記憶體 / 高併發模型',
   'not-applicable': '不適用 / 尚未決定'
 };
@@ -132,6 +176,14 @@ const databaseBackupLabelMap = {
   'geo-redundant': '異地備份 / Geo-Redundant',
   'long-term-retention': '長期保留與稽核封存',
   'not-applicable': '不適用 / 由平台預設'
+};
+
+const autoscaleLabelMap = {
+  'manual-only': '手動調整容量',
+  'scheduled-scale': '依排程自動擴縮',
+  'metric-based-scale': '依 CPU / Queue / Request 指標自動擴縮',
+  'serverless-burst': '依事件量自動擴展（Serverless）',
+  'not-applicable': '不適用 / 尚未決定'
 };
 
 const resolveDatabasePlan = (answers) => {
@@ -145,16 +197,22 @@ const resolveDatabasePlan = (answers) => {
     'read-only': '唯讀查詢',
     'read-write': '交易式讀寫',
     'schema-change': 'Schema 調整與 migration',
+    'ops-admin': '平台或 DBA 完整管理',
     'not-applicable': '不適用'
   }[answers.databaseAccess] ?? '未指定';
 
   return {
-    engine: tier.serviceId === 'sqlDatabase' ? 'Azure SQL Database' : 'Azure Database for PostgreSQL',
+    engine:
+      tier.serviceId === 'sqlDatabase'
+        ? 'Azure SQL Database'
+        : tier.serviceId === 'postgresql'
+          ? 'Azure Database for PostgreSQL'
+          : 'Azure Cosmos DB for MongoDB',
     sku: tier.sku,
     label: tier.label,
     sizing: tier.sizing,
     note: tier.note,
-    accessMode,
+    accessMode: tier.serviceId === 'cosmosMongo' ? '文件資料讀寫 / 集合管理' : accessMode,
     performanceModel: databasePerformanceLabelMap[answers.databasePerformance] ?? '未指定',
     backupPolicy: databaseBackupLabelMap[answers.databaseBackup] ?? '未指定'
   };
@@ -163,6 +221,26 @@ const resolveDatabasePlan = (answers) => {
 const resolveAppServiceConfig = (answers) => ({
   plan: planLabelMap[answers.appServicePlan] ?? '未指定',
   runtime: runtimeLabelMap[answers.appServiceRuntime] ?? '未指定'
+});
+
+const resolveFunctionConfig = (answers) => ({
+  enabled: ['function-app', 'mixed'].includes(answers.computePlatform),
+  plan: functionPlanLabelMap[answers.functionPlan] ?? '未指定',
+  runtime: functionRuntimeLabelMap[answers.functionRuntime] ?? '未指定'
+});
+
+const resolveAutoscaleProfile = (answers) => ({
+  mode: autoscaleLabelMap[answers.autoscaleMode] ?? '未指定',
+  guidance:
+    answers.autoscaleMode === 'scheduled-scale'
+      ? '建議依營運時段設定 instance 最小/最大值與排程。'
+      : answers.autoscaleMode === 'metric-based-scale'
+        ? '建議定義 CPU、HTTP request、Queue 長度等指標門檻。'
+        : answers.autoscaleMode === 'serverless-burst'
+          ? '建議搭配 Functions 或 Queue Trigger，確認突發事件量上限。'
+          : answers.autoscaleMode === 'manual-only'
+            ? '不使用自動擴縮，需建立人工調整與容量監控流程。'
+            : '可由平台預設後續補充。'
 });
 
 const resolveGeneratorProfile = (answers) => ({
@@ -190,10 +268,15 @@ const resolveReferenceLinks = (answers) => {
 const calculateCostEstimate = (answers, services, databasePlan) => {
   const serviceCosts = {
     appService: { b1: 55, s1: 110, s2: 150, p1v3: 240, p2v3: 360, 'container-plan': 260 },
+    functionApp: { consumption: 18, premium: 95, dedicated: 40, 'not-applicable': 0 },
     apiManagement: 180,
-    sqlDatabase: { S0: 18, S1: 32, S2: 75 },
+    sqlDatabase: { S0: 18, S1: 32, S2: 75, S3: 145, GP_Gen5_2: 168, BC_Gen5_4: 420 },
     postgresql: { B1ms: 20, GP_Standard_D2s_v3: 125, MO_E2s_v3: 210 },
+    cosmosMongo: { Serverless: 25, M30: 180, M50: 320 },
     storage: 12,
+    messaging: { 'service-bus-queue': 12, 'service-bus-topic': 34, 'hybrid-messaging': 52, none: 0 },
+    redis: { 'redis-basic': 16, 'redis-standard': 48, 'redis-premium': 135, none: 0 },
+    autoscale: { 'manual-only': 0, 'scheduled-scale': 12, 'metric-based-scale': 20, 'serverless-burst': 10, 'not-applicable': 0 },
     keyVault: 6,
     appInsights: 18,
     logAnalytics: 25,
@@ -214,11 +297,25 @@ const calculateCostEstimate = (answers, services, databasePlan) => {
 
   const planKey = answers.appServicePlan || 's1';
   const appCost = serviceCosts.appService[planKey] ?? 110;
-  const dbCost = databasePlan ? (serviceCosts[databasePlan.engine === 'Azure SQL Database' ? 'sqlDatabase' : 'postgresql'][databasePlan.sku] ?? 0) : 0;
+  const functionCost = serviceCosts.functionApp[answers.functionPlan] ?? 0;
+  const dbCost = databasePlan
+    ? (serviceCosts[
+        databasePlan.engine === 'Azure SQL Database'
+          ? 'sqlDatabase'
+          : databasePlan.engine === 'Azure Database for PostgreSQL'
+            ? 'postgresql'
+            : 'cosmosMongo'
+      ][databasePlan.sku] ?? 0)
+    : 0;
+  const messagingCost = serviceCosts.messaging[answers.messagingService] ?? 0;
+  const cacheCost = serviceCosts.redis[answers.cacheService] ?? 0;
+  const autoscaleCost = serviceCosts.autoscale[answers.autoscaleMode] ?? 0;
   const performancePremium = {
     'sql-dtu': 0,
     'sql-vcore': 35,
     'postgres-vcore': 28,
+    'mongo-ru': 18,
+    'mongo-vcore': 42,
     'memory-optimized': 65,
     'not-applicable': 0
   }[answers.databasePerformance] ?? 0;
@@ -238,8 +335,28 @@ const calculateCostEstimate = (answers, services, databasePlan) => {
       return;
     }
 
-    if (service.id === 'sqlDatabase' || service.id === 'postgresql') {
+    if (service.id === 'functionApp') {
+      total += functionCost;
+      return;
+    }
+
+    if (service.id === 'sqlDatabase' || service.id === 'postgresql' || service.id === 'cosmosMongo') {
       total += dbCost;
+      return;
+    }
+
+    if (service.id === 'messaging') {
+      total += messagingCost;
+      return;
+    }
+
+    if (service.id === 'redis') {
+      total += cacheCost;
+      return;
+    }
+
+    if (service.id === 'autoscale') {
+      total += autoscaleCost;
       return;
     }
 
@@ -269,11 +386,20 @@ const resolveServiceSku = (serviceId, answers, databasePlan) => {
   switch (serviceId) {
     case 'appService':
       return planLabelMap[answers.appServicePlan] ?? (answers.scaleExpectation === 'mission-critical' ? 'P1v3' : 'S1');
+    case 'functionApp':
+      return functionPlanLabelMap[answers.functionPlan] ?? 'Consumption';
     case 'apiManagement':
       return answers.apiManagementNeed === 'hybrid-api' ? 'Standard v2' : 'Developer';
     case 'sqlDatabase':
     case 'postgresql':
+    case 'cosmosMongo':
       return databasePlan?.sku ?? '待定';
+    case 'messaging':
+      return messagingLabelMap[answers.messagingService] ?? 'Standard';
+    case 'redis':
+      return cacheLabelMap[answers.cacheService] ?? 'Basic';
+    case 'autoscale':
+      return autoscaleLabelMap[answers.autoscaleMode] ?? '未指定';
     case 'storage':
       return answers.dataSensitivity === 'restricted' ? 'Standard_ZRS' : 'Standard_LRS';
     case 'waf':
@@ -316,6 +442,10 @@ const deriveSecurityControls = (answers) => {
     controls.push(`資料庫需配置備份策略：${databaseBackupLabelMap[answers.databaseBackup]}，並確認定期還原演練。`);
   }
 
+  if (answers.databaseNeed === 'mongo') {
+    controls.push('MongoDB 建議限制可信來源、啟用備份策略，並檢查集合索引與 throughput 配置。');
+  }
+
   if (answers.secretAccess && answers.secretAccess !== 'none') {
     controls.push('應用程式應以 Managed Identity 或受控身分讀取機密，避免硬編碼帳密。');
   }
@@ -334,6 +464,18 @@ const deriveSecurityControls = (answers) => {
 
   if (answers.apiManagementNeed && answers.apiManagementNeed !== 'none') {
     controls.push('APIM 應配置 Subscription / Product 規則、API Policy 與必要的存取節流設定。');
+  }
+
+  if (answers.messagingService && answers.messagingService !== 'none') {
+    controls.push('訊息服務應設定 dead-letter、重試與佇列監控，避免訊息堆積未被處理。');
+  }
+
+  if (answers.cacheService === 'redis-premium') {
+    controls.push('Redis Premium 建議搭配 VNet、持久化與快取鍵名治理策略。');
+  }
+
+  if (answers.autoscaleMode && answers.autoscaleMode !== 'not-applicable') {
+    controls.push(`Auto Scale 策略：${autoscaleLabelMap[answers.autoscaleMode]}，需同步建立容量告警與上限保護。`);
   }
 
   return controls;
@@ -355,9 +497,13 @@ const buildArchitecturePreview = (answers, services, databasePlan) => {
       answers.secretAccess && answers.secretAccess !== 'none' ? 'Key Vault 存取控制' : '應用程式存取控制'
     ],
     application: [
+      `運算平台：${computePlatformLabelMap[answers.computePlatform] ?? '未指定'}`,
       `Azure App Service (${planLabelMap[answers.appServicePlan] ?? '未指定'})`,
-      `Runtime: ${runtimeLabelMap[answers.appServiceRuntime] ?? '未指定'}`,
+      `App Runtime: ${runtimeLabelMap[answers.appServiceRuntime] ?? '未指定'}`,
+      `Azure Functions (${functionPlanLabelMap[answers.functionPlan] ?? '未指定'}) / ${functionRuntimeLabelMap[answers.functionRuntime] ?? '未指定'}`,
       answers.apiManagementNeed && answers.apiManagementNeed !== 'none' ? 'Azure API Management' : '直接應用入口',
+      answers.messagingService && answers.messagingService !== 'none' ? `Messaging: ${messagingLabelMap[answers.messagingService]}` : '無訊息佇列需求',
+      answers.cacheService && answers.cacheService !== 'none' ? `Redis: ${cacheLabelMap[answers.cacheService]}` : '無 Redis 快取需求',
       Array.isArray(answers.governanceControls) && answers.governanceControls.includes('azure-devops') ? 'Azure DevOps Pipeline' : 'CI/CD 自行規劃'
     ],
     data: [
@@ -370,17 +516,21 @@ const buildArchitecturePreview = (answers, services, databasePlan) => {
     governance: [
       Array.isArray(answers.governanceControls) && answers.governanceControls.includes('arm-rbac') ? 'Azure Resource Manager / RBAC' : '標準 Azure RBAC',
       services.some((service) => service.id === 'appInsights') ? 'Application Insights' : '基本監控',
-      services.some((service) => service.id === 'logAnalytics') ? 'Log Analytics / 稽核' : '輕量日誌'
+      services.some((service) => service.id === 'logAnalytics') ? 'Log Analytics / 稽核' : '輕量日誌',
+      answers.autoscaleMode && answers.autoscaleMode !== 'not-applicable' ? `Auto Scale：${autoscaleLabelMap[answers.autoscaleMode]}` : 'Auto Scale 未指定'
     ]
   };
 };
 
 const buildArchitectureMermaid = (result) => {
   const appNode = `APP[Azure App Service\\n${result.appServiceConfig.plan} / ${result.appServiceConfig.runtime}]`;
+  const functionNode = result.functionConfig.enabled ? `FUNC[Azure Functions\\n${result.functionConfig.plan} / ${result.functionConfig.runtime}]` : null;
   const apiNode = result.services.some((service) => service.id === 'apiManagement') ? 'APIM[Azure API Management]' : 'EDGE[Ingress Control]';
   const dbNode = result.databasePlan ? `DB[( ${result.databasePlan.engine}\\n${result.databasePlan.sku} )]` : 'DB[(No Relational DB)]';
   const blobNode = result.services.some((service) => service.id === 'storage') ? 'BLOB[(Azure Blob Storage)]' : 'BLOB[(No Blob)]';
   const aiNode = result.services.some((service) => service.id === 'openAi') ? 'AI[Azure OpenAI / AI Search]' : 'AI[No AI Service]';
+  const messageNode = result.services.some((service) => service.id === 'messaging') ? 'MSG[Azure Messaging Services]' : null;
+  const cacheNode = result.services.some((service) => service.id === 'redis') ? 'CACHE[Azure Cache for Redis]' : null;
   const identityNode = result.services.some((service) => service.id === 'mfa') ? 'ID[Entra ID + MFA]' : 'ID[Microsoft Entra ID]';
   const monitorNode = result.services.some((service) => service.id === 'logAnalytics') ? 'MON[App Insights + Log Analytics]' : 'MON[Basic Monitoring]';
 
@@ -390,15 +540,19 @@ const buildArchitectureMermaid = (result) => {
     'USER[使用者 / 系統整合方] --> EDGE1[Internet / VPN]',
     `EDGE1 --> ${apiNode}`,
     `${apiNode} --> ${appNode}`,
+    functionNode ? `${appNode} --> ${functionNode}` : null,
+    messageNode ? `${appNode} --> ${messageNode}` : null,
+    messageNode && functionNode ? `${messageNode} --> ${functionNode}` : null,
     `${appNode} --> ${dbNode}`,
     `${appNode} --> ${blobNode}`,
+    cacheNode ? `${appNode} --> ${cacheNode}` : null,
     `${appNode} --> KV[Azure Key Vault]`,
     `${appNode} --> ${aiNode}`,
     `${identityNode} --> ${appNode}`,
     `${appNode} --> ${monitorNode}`,
     'DEVOPS[Azure DevOps / ARM] -. 管理與部署 .-> APP',
     '```'
-  ].join('\n');
+  ].filter(Boolean).join('\n');
 };
 
 const buildServiceAccessMatrix = (services, permissions, answers, databasePlan) => {
@@ -506,6 +660,8 @@ export const evaluateSurvey = (answers, projectProfile = {}) => {
   const applicationStatus = determineApplicationStatus(readiness, riskLevel);
   const databasePlan = resolveDatabasePlan(mergedAnswers);
   const appServiceConfig = resolveAppServiceConfig(mergedAnswers);
+  const functionConfig = resolveFunctionConfig(mergedAnswers);
+  const autoscaleProfile = resolveAutoscaleProfile(mergedAnswers);
   const generatorProfile = resolveGeneratorProfile(mergedAnswers);
   const securityControls = deriveSecurityControls(mergedAnswers);
   const serviceAccessMatrix = buildServiceAccessMatrix(services, permissions, mergedAnswers, databasePlan);
@@ -518,12 +674,14 @@ export const evaluateSurvey = (answers, projectProfile = {}) => {
     projectProfile.projectName ? `專案名稱：${projectProfile.projectName}` : null,
     projectProfile.department ? `申請單位：${projectProfile.department}` : null,
     projectProfile.applicantName ? `申請人：${projectProfile.applicantName}` : null,
-    projectProfile.owner ? `負責人：${projectProfile.owner}` : null,
+    projectProfile.employeeId ? `員工編號：${projectProfile.employeeId}` : null,
     `申請狀態：${applicationStatus}`,
     `問卷完成度：${readiness}%`,
     `治理風險等級：${riskLevel}`,
     services.length ? `核心服務：${services.slice(0, 4).map((item) => item.name).join('、')}` : null,
     databasePlan ? `資料庫方案：${databasePlan.label}` : null,
+    `運算平台：${computePlatformLabelMap[mergedAnswers.computePlatform] ?? '未指定'}`,
+    `Auto Scale：${autoscaleProfile.mode}`,
     `雲端位置：${regionLabel}`,
     `月費粗估：${costEstimate.currency} ${costEstimate.low}-${costEstimate.high} / 月`,
     `對外存取：${externalAccessLabelMap[mergedAnswers.externalAccessControl] ?? '未指定'}`
@@ -539,6 +697,8 @@ export const evaluateSurvey = (answers, projectProfile = {}) => {
     executiveSummary,
     databasePlan,
     appServiceConfig,
+    functionConfig,
+    autoscaleProfile,
     generatorProfile,
     regionLabel,
     serviceAccessMatrix,
@@ -555,8 +715,8 @@ export const buildReportMarkdown = (projectProfile, result) => {
     `- 專案名稱：${projectProfile.projectName || '未填寫'}`,
     `- 申請單位：${projectProfile.department || '未填寫'}`,
     `- 申請人：${projectProfile.applicantName || '未填寫'}`,
+    `- 員工編號：${projectProfile.employeeId || '未填寫'}`,
     `- 申請人信箱：${projectProfile.applicantEmail || '未填寫'}`,
-    `- 負責人：${projectProfile.owner || '未填寫'}`,
     `- 預計上線日：${projectProfile.launchDate || '未填寫'}`,
     `- 雲端位置：${result.regionLabel}`,
     `- 對外資源：${projectProfile.publicResourceScope || '未填寫'}`,
@@ -617,11 +777,16 @@ export const buildReportMarkdown = (projectProfile, result) => {
     '## 專案摘要',
     ...profileLines,
     '',
-    '## 應用與 Generator 配置',
+    '## 運算與 Generator 配置',
     `| 項目 | 內容 |`,
     `| --- | --- |`,
+    `| 主要運算平台 | ${result.functionConfig.enabled && result.appServiceConfig.plan !== '未指定 / 不使用 App Service' ? 'App Service + Azure Functions' : result.functionConfig.enabled ? 'Azure Functions' : 'Azure App Service'} |`,
     `| App Service Plan | ${result.appServiceConfig.plan} |`,
     `| App Service Runtime | ${result.appServiceConfig.runtime} |`,
+    `| Azure Functions Plan | ${result.functionConfig.plan} |`,
+    `| Azure Functions Runtime | ${result.functionConfig.runtime} |`,
+    `| Auto Scale | ${result.autoscaleProfile.mode} |`,
+    `| Auto Scale 補充 | ${result.autoscaleProfile.guidance} |`,
     `| Generator 交付模式 | ${result.generatorProfile.mode} |`,
     `| Generator 補充說明 | ${result.generatorProfile.endpointDelivery} |`,
     '',

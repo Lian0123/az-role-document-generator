@@ -31,6 +31,7 @@ const uiMessages = {
     projectName: '專案名稱',
     department: '申請單位',
     applicantName: '申請人',
+    employeeId: '員工編號',
     applicantEmail: '申請人 Email',
     owner: '負責人',
     launchDate: '預計上線日',
@@ -71,6 +72,7 @@ const uiMessages = {
     draftProjectName: '例如：智慧客服平台',
     draftDepartment: '例如：數位轉型處',
     draftApplicant: '例如：李小華',
+    draftEmployeeId: '例如：A12345',
     draftEmail: '例如：owner@example.com',
     draftOwner: '例如：陳經理',
     draftResources: '例如：公開入口網站、Partner API、管理後台',
@@ -109,6 +111,7 @@ const uiMessages = {
     projectName: 'Project Name',
     department: 'Department',
     applicantName: 'Applicant',
+    employeeId: 'Employee ID',
     applicantEmail: 'Applicant Email',
     owner: 'Owner',
     launchDate: 'Launch Date',
@@ -149,6 +152,7 @@ const uiMessages = {
     draftProjectName: 'Example: Smart Support Portal',
     draftDepartment: 'Example: Digital Transformation Office',
     draftApplicant: 'Example: Jane Lee',
+    draftEmployeeId: 'Example: A12345',
     draftEmail: 'Example: owner@example.com',
     draftOwner: 'Example: Project Manager Chen',
     draftResources: 'Example: public portal, partner API, admin console',
@@ -187,6 +191,7 @@ const uiMessages = {
     projectName: 'プロジェクト名',
     department: '部門',
     applicantName: '申請者',
+    employeeId: '社員番号',
     applicantEmail: '申請者メール',
     owner: '責任者',
     launchDate: '公開予定日',
@@ -227,6 +232,7 @@ const uiMessages = {
     draftProjectName: '例: スマートサポートポータル',
     draftDepartment: '例: デジタル変革部',
     draftApplicant: '例: 山田 花子',
+    draftEmployeeId: '例: A12345',
     draftEmail: '例: owner@example.com',
     draftOwner: '例: 陳マネージャー',
     draftResources: '例: 公開ポータル、Partner API、管理画面',
@@ -263,8 +269,13 @@ const questionTranslations = {
   databaseBackup: { en: 'What backup and restore strategy is required?', ja: '必要なバックアップ・復元方針は何ですか。' },
   queryStoreAccess: { en: 'Does MSSQL Query Store need to be viewed or managed?', ja: 'MSSQL Query Store の参照または管理が必要ですか。' },
   blobUsage: { en: 'What is Blob Storage used for?', ja: 'Blob Storage の用途は何ですか。' },
+  computePlatform: { en: 'What is the primary compute platform?', ja: '主要な実行基盤は何ですか。' },
   appServicePlan: { en: 'Which App Service Plan is expected?', ja: '想定する App Service Plan はどれですか。' },
   appServiceRuntime: { en: 'What App Service runtime is required?', ja: '必要な App Service Runtime は何ですか。' },
+  functionPlan: { en: 'Which Azure Functions hosting plan is needed?', ja: '必要な Azure Functions Hosting Plan はどれですか。' },
+  functionRuntime: { en: 'What Azure Functions runtime is required?', ja: '必要な Azure Functions Runtime は何ですか。' },
+  messagingService: { en: 'Are Azure messaging services required?', ja: 'Azure Messaging Services は必要ですか。' },
+  cacheService: { en: 'Is Azure Cache for Redis required?', ja: 'Azure Cache for Redis は必要ですか。' },
   databaseAccess: { en: 'What is the database access mode?', ja: 'データベースのアクセス方式は何ですか。' },
   internetExposure: { en: 'Will the system be exposed to the internet?', ja: 'システムはインターネット公開されますか。' },
   externalAccessControl: { en: 'How should external access be controlled?', ja: '外部アクセスはどのように制御しますか。' },
@@ -275,6 +286,7 @@ const questionTranslations = {
   generatorAccess: { en: 'How should Generator Key / URL be delivered?', ja: 'Generator Key / URL の受け渡し方式は何ですか。' },
   aiCapability: { en: 'Are AI capabilities required?', ja: 'AI 機能は必要ですか。' },
   opsNeeds: { en: 'What operational capabilities are needed?', ja: '必要な運用機能は何ですか。' },
+  autoscaleMode: { en: 'Is auto scale required?', ja: 'Auto Scale は必要ですか。' },
   scaleExpectation: { en: 'What scale and availability is expected?', ja: '想定する負荷と可用性はどれですか。' }
 };
 
@@ -312,22 +324,31 @@ const optionTranslations = {
   databaseNeed: {
     sql: { en: 'Relational transaction database (Azure SQL)', ja: 'リレーショナル DB (Azure SQL)' },
     postgres: { en: 'Open-source database (PostgreSQL)', ja: 'オープンソース DB (PostgreSQL)' },
+    mongo: { en: 'Document database (MongoDB)', ja: 'ドキュメント DB (MongoDB)' },
     none: { en: 'No structured database needed now', ja: '現時点では構造化 DB 不要' },
-    'hybrid-db': { en: 'SQL and unstructured storage together', ja: 'SQL と非構造化ストレージを併用' }
+    'hybrid-db': { en: 'SQL, NoSQL, and unstructured storage together', ja: 'SQL・NoSQL・非構造化ストレージを併用' }
   },
   databaseTier: {
     'sql-s0': { en: 'Azure SQL S0', ja: 'Azure SQL S0' },
     'sql-s1': { en: 'Azure SQL S1', ja: 'Azure SQL S1' },
     'sql-s2': { en: 'Azure SQL S2', ja: 'Azure SQL S2' },
+    'sql-s3': { en: 'Azure SQL S3', ja: 'Azure SQL S3' },
+    'sql-gp-vcore': { en: 'Azure SQL General Purpose vCore', ja: 'Azure SQL General Purpose vCore' },
+    'sql-bc-vcore': { en: 'Azure SQL Business Critical vCore', ja: 'Azure SQL Business Critical vCore' },
     'postgres-b1ms': { en: 'PostgreSQL B1ms', ja: 'PostgreSQL B1ms' },
     'postgres-gp': { en: 'PostgreSQL General Purpose', ja: 'PostgreSQL General Purpose' },
     'postgres-mo': { en: 'PostgreSQL Memory Optimized', ja: 'PostgreSQL Memory Optimized' },
+    'mongo-serverless': { en: 'MongoDB Serverless', ja: 'MongoDB Serverless' },
+    'mongo-m30': { en: 'MongoDB M30', ja: 'MongoDB M30' },
+    'mongo-m50': { en: 'MongoDB M50', ja: 'MongoDB M50' },
     'not-applicable': { en: 'Not applicable / undecided', ja: '該当なし / 未決定' }
   },
   databasePerformance: {
     'sql-dtu': { en: 'Azure SQL DTU model', ja: 'Azure SQL DTU モデル' },
     'sql-vcore': { en: 'Azure SQL vCore model', ja: 'Azure SQL vCore モデル' },
     'postgres-vcore': { en: 'PostgreSQL vCore model', ja: 'PostgreSQL vCore モデル' },
+    'mongo-ru': { en: 'MongoDB RU model', ja: 'MongoDB RU モデル' },
+    'mongo-vcore': { en: 'MongoDB vCore model', ja: 'MongoDB vCore モデル' },
     'memory-optimized': { en: 'Memory optimized / high concurrency', ja: '高メモリ / 高同時実行モデル' },
     'not-applicable': { en: 'Not applicable / undecided', ja: '該当なし / 未決定' }
   },
@@ -351,6 +372,12 @@ const optionTranslations = {
     'rag-kb': { en: 'AI knowledge base source', ja: 'AI ナレッジベースの文書ソース' },
     none: { en: 'Do not use Blob Storage', ja: 'Blob Storage を使用しない' }
   },
+  computePlatform: {
+    'app-service': { en: 'Use Azure App Service as primary compute', ja: 'Azure App Service を主要基盤にする' },
+    'function-app': { en: 'Use Azure Functions as primary compute', ja: 'Azure Functions を主要基盤にする' },
+    mixed: { en: 'Use both App Service and Azure Functions', ja: 'App Service と Azure Functions を併用する' },
+    undecided: { en: 'Undecided / let the platform recommend', ja: '未定 / プラットフォーム推奨に任せる' }
+  },
   appServicePlan: {
     b1: { en: 'B1', ja: 'B1' },
     s1: { en: 'S1', ja: 'S1' },
@@ -369,6 +396,31 @@ const optionTranslations = {
     'static-web': { en: 'Static + API', ja: 'Static + API' },
     container: { en: 'Custom Container', ja: 'Custom Container' },
     'not-applicable': { en: 'Undecided / do not use App Service runtime', ja: '未定 / App Service Runtime を使用しない' }
+  },
+  functionPlan: {
+    consumption: { en: 'Consumption', ja: 'Consumption' },
+    premium: { en: 'Premium', ja: 'Premium' },
+    dedicated: { en: 'Dedicated (App Service Plan)', ja: 'Dedicated (App Service Plan)' },
+    'not-applicable': { en: 'Not applicable / undecided', ja: '該当なし / 未決定' }
+  },
+  functionRuntime: {
+    'dotnet-isolated': { en: '.NET Isolated', ja: '.NET Isolated' },
+    node: { en: 'Node.js', ja: 'Node.js' },
+    python: { en: 'Python', ja: 'Python' },
+    powershell: { en: 'PowerShell', ja: 'PowerShell' },
+    'not-applicable': { en: 'Not applicable / undecided', ja: '該当なし / 未決定' }
+  },
+  messagingService: {
+    'service-bus-queue': { en: 'Service Bus Queue', ja: 'Service Bus Queue' },
+    'service-bus-topic': { en: 'Service Bus Topic / Subscription', ja: 'Service Bus Topic / Subscription' },
+    'hybrid-messaging': { en: 'Queue + Topic hybrid', ja: 'Queue + Topic の併用' },
+    none: { en: 'No messaging needed now', ja: '現時点で Messaging は不要' }
+  },
+  cacheService: {
+    'redis-basic': { en: 'Redis Basic', ja: 'Redis Basic' },
+    'redis-standard': { en: 'Redis Standard', ja: 'Redis Standard' },
+    'redis-premium': { en: 'Redis Premium', ja: 'Redis Premium' },
+    none: { en: 'No Redis needed now', ja: '現時点で Redis は不要' }
   },
   databaseAccess: {
     'read-only': { en: 'Read-only queries / reporting', ja: '参照専用 / レポート' },
@@ -433,6 +485,13 @@ const optionTranslations = {
     'security-audit': { en: 'Security audit and compliance review', ja: 'セキュリティ監査とコンプライアンス確認' },
     none: { en: 'No additional operations capability needed', ja: '追加の運用機能は不要' }
   },
+  autoscaleMode: {
+    'manual-only': { en: 'No auto scale, manual capacity changes only', ja: 'Auto Scale を使わず手動で容量変更' },
+    'scheduled-scale': { en: 'Scheduled scaling', ja: 'スケジュールによる自動スケール' },
+    'metric-based-scale': { en: 'Scale by CPU, queue, or request metrics', ja: 'CPU、Queue、Request 指標で自動スケール' },
+    'serverless-burst': { en: 'Scale by event volume (serverless)', ja: 'イベント量に応じて自動スケール' },
+    'not-applicable': { en: 'Not applicable / undecided', ja: '該当なし / 未決定' }
+  },
   scaleExpectation: {
     standard: { en: 'Standard business workload', ja: '標準的な業務システム' },
     'mission-critical': { en: 'High traffic or mission critical', ja: '高トラフィックまたは重要システム' },
@@ -470,14 +529,22 @@ const optionDescriptionTranslations = {
     'sql-s0': { en: 'Small production environment with light transaction load', ja: '軽いトランザクション向け小規模本番' },
     'sql-s1': { en: 'General production with medium transaction volume', ja: '中程度トランザクションの一般本番' },
     'sql-s2': { en: 'Higher concurrency and more critical workloads', ja: '高同時実行・重要業務向け' },
+    'sql-s3': { en: 'High transaction volume with larger storage needs', ja: '高トランザクション量と大容量向け' },
+    'sql-gp-vcore': { en: 'General purpose SQL using the vCore pricing model', ja: 'vCore モデルの一般用途 SQL' },
+    'sql-bc-vcore': { en: 'Business critical SQL with low latency and HA', ja: '低遅延・高可用の Business Critical SQL' },
     'postgres-b1ms': { en: 'Development, testing, and light internal workloads', ja: '開発・検証・軽量社内用途' },
     'postgres-gp': { en: 'General production PostgreSQL workload', ja: '一般的な本番 PostgreSQL ワークロード' },
     'postgres-mo': { en: 'High concurrency and memory-heavy workload', ja: '高同時実行・メモリ重視の負荷' }
+    , 'mongo-serverless': { en: 'Consumption-based MongoDB suitable for bursty traffic', ja: '変動トラフィック向けの従量課金 MongoDB' }
+    , 'mongo-m30': { en: '2 vCores / 8 GB RAM for general production use', ja: '一般本番向け 2 vCore / 8 GB RAM' }
+    , 'mongo-m50': { en: '4 vCores / 16 GB RAM for high concurrency workloads', ja: '高同時実行向け 4 vCore / 16 GB RAM' }
   },
   databasePerformance: {
     'sql-dtu': { en: 'Estimate combined transaction and query capacity through DTUs', ja: 'DTU でトランザクションと照会負荷を評価' },
     'sql-vcore': { en: 'Plan compute and memory explicitly with vCore sizing', ja: 'vCore で CPU・メモリを明示的に計画' },
     'postgres-vcore': { en: 'Plan PostgreSQL compute and storage separately', ja: 'PostgreSQL の計算資源とストレージを個別計画' },
+    'mongo-ru': { en: 'Plan throughput and document access by RU/s', ja: 'RU/s ベースでスループットを設計' },
+    'mongo-vcore': { en: 'Plan MongoDB compute and memory explicitly', ja: 'MongoDB の CPU とメモリを明示的に設計' },
     'memory-optimized': { en: 'For search-heavy or memory-intensive workloads', ja: '検索集中または高メモリ負荷向け' }
   },
   databaseBackup: {
@@ -497,6 +564,12 @@ const optionDescriptionTranslations = {
     'hot-media': { en: 'Suitable for CDN-backed or high-read scenarios', ja: 'CDN 連携や高頻度読取に適合' },
     'rag-kb': { en: 'Document source for Azure OpenAI and AI Search', ja: 'Azure OpenAI と AI Search の文書ソース' }
   },
+  computePlatform: {
+    'app-service': { en: 'Best for long-running web and API workloads', ja: '長時間稼働する Web と API に最適' },
+    'function-app': { en: 'Best for event-driven jobs, schedules, and webhooks', ja: 'イベント駆動のジョブ、スケジュール、Webhook に最適' },
+    mixed: { en: 'Use web/API hosting with serverless background processing', ja: 'Web/API と serverless 背景処理を併用' },
+    undecided: { en: 'Leave the compute recommendation to the platform review', ja: '実行基盤の選定を後続レビューに委ねる' }
+  },
   appServicePlan: {
     b1: { en: 'PoC and development validation', ja: 'PoC / 開発検証向け' },
     s1: { en: 'General production environment', ja: '一般的な本番環境' },
@@ -515,6 +588,27 @@ const optionDescriptionTranslations = {
     'static-web': { en: 'Static frontend with backend APIs', ja: '静的フロントエンド + API' },
     container: { en: 'Need custom runtime and image control', ja: '独自 runtime とイメージ制御が必要' },
     'not-applicable': { en: 'Keep runtime decision for later', ja: 'Runtime 決定を後回しにする' }
+  },
+  functionPlan: {
+    consumption: { en: 'Pay per execution and scale automatically', ja: '実行回数課金で自動拡張' },
+    premium: { en: 'For VNet integration, pre-warmed instances, and lower cold starts', ja: 'VNet、事前ウォーム、低コールドスタート向け' },
+    dedicated: { en: 'Share capacity with an App Service Plan', ja: 'App Service Plan と容量を共有' }
+  },
+  functionRuntime: {
+    'dotnet-isolated': { en: 'Suitable for enterprise integration and long-term maintenance', ja: '企業統合と長期保守に適合' },
+    node: { en: 'Suitable for event-driven APIs and webhook processing', ja: 'イベント駆動 API や webhook 処理向け' },
+    python: { en: 'Suitable for AI, automation, and data processing', ja: 'AI、自動化、データ処理向け' },
+    powershell: { en: 'Suitable for platform automation and operations scripts', ja: '運用自動化や管理スクリプト向け' }
+  },
+  messagingService: {
+    'service-bus-queue': { en: 'Reliable asynchronous processing with a single consumer flow', ja: '単一消費フロー向けの信頼性ある非同期処理' },
+    'service-bus-topic': { en: 'One event fan-out to multiple subscribers', ja: '1 つのイベントを複数購読先へ配信' },
+    'hybrid-messaging': { en: 'Use both queue processing and event broadcast patterns', ja: 'Queue 処理とイベント配信を併用' }
+  },
+  cacheService: {
+    'redis-basic': { en: 'Suitable for PoC or lightweight cache needs', ja: 'PoC や軽量なキャッシュ向け' },
+    'redis-standard': { en: 'Standard production cache usage', ja: '標準的な本番キャッシュ用途' },
+    'redis-premium': { en: 'Use when persistence, isolation, or VNet integration is needed', ja: '永続化、分離、VNet 連携が必要な場合に適合' }
   },
   externalAccessControl: {
     'public-with-waf': { en: 'Good for public portals and external users', ja: '公開ポータルや外部利用者向け' },
@@ -544,6 +638,12 @@ const optionDescriptionTranslations = {
     'api-observability': { en: 'Track API latency, errors, and traffic patterns', ja: 'API 遅延、エラー、流量傾向を把握' },
     'security-audit': { en: 'Provide auditability and compliance visibility', ja: '監査証跡とコンプライアンス可視化' },
     none: { en: 'Use platform defaults or minimal operations features first', ja: 'まずは最小限の運用機能で開始' }
+  },
+  autoscaleMode: {
+    'manual-only': { en: 'Capacity changes are handled manually by the platform team', ja: '容量変更を手動運用で行う' },
+    'scheduled-scale': { en: 'Scale based on business-hour or traffic schedule', ja: '業務時間やピーク時刻に合わせて拡縮' },
+    'metric-based-scale': { en: 'Scale based on CPU, request rate, or queue depth', ja: 'CPU、リクエスト数、Queue 深度に応じて拡縮' },
+    'serverless-burst': { en: 'Best for event-driven workloads with burst traffic', ja: 'バースト型のイベント駆動負荷に最適' }
   }
 };
 

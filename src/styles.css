@@ -148,6 +148,32 @@ button {
   font-size: 1.05rem;
 }
 
+.hero-highlights {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 24px;
+}
+
+.hero-highlights article {
+  display: grid;
+  gap: 6px;
+  padding: 16px;
+  border-radius: 20px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(240, 247, 252, 0.72));
+  border: 1px solid rgba(17, 36, 56, 0.08);
+}
+
+.hero-highlights strong {
+  color: var(--navy);
+  font-family: 'Sora', sans-serif;
+}
+
+.hero-highlights span {
+  color: var(--slate);
+  font-size: 0.92rem;
+}
+
 .hero-actions {
   display: flex;
   flex-wrap: wrap;
@@ -368,9 +394,45 @@ label span {
   margin-bottom: 22px;
 }
 
+.intake-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
+  padding: 18px 20px;
+  margin-bottom: 18px;
+  border-radius: 22px;
+  background: linear-gradient(135deg, rgba(22, 50, 79, 0.96), rgba(17, 138, 178, 0.92));
+  color: #ffffff;
+}
+
+.intake-banner strong {
+  display: block;
+  margin-bottom: 6px;
+  font-family: 'Sora', sans-serif;
+}
+
+.intake-banner span {
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.intake-banner-chip {
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
 label {
   display: grid;
   gap: 8px;
+}
+
+label > span {
+  font-size: 0.92rem;
+  font-weight: 700;
 }
 
 input,
@@ -812,9 +874,15 @@ textarea:focus {
   .option-grid,
   .score-banner,
   .metric-grid,
+  .hero-highlights,
   .architecture-grid,
   .reference-link-list {
     grid-template-columns: 1fr;
+  }
+
+  .intake-banner {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   .hero-copy h1 {
