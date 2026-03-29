@@ -90,7 +90,8 @@ const runtimeLabelMap = {
   java: 'Java',
   php: 'PHP',
   'static-web': 'Static + API',
-  container: 'Custom Container'
+  container: 'Custom Container',
+  'not-applicable': '未指定 / 不適用'
 };
 
 const planLabelMap = {
@@ -99,7 +100,8 @@ const planLabelMap = {
   s2: 'S2',
   p1v3: 'P1v3',
   p2v3: 'P2v3',
-  'container-plan': 'Container on App Service'
+  'container-plan': 'Container on App Service',
+  'not-applicable': '未指定 / 不使用 App Service'
 };
 
 const generatorLabelMap = {

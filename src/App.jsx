@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   AlertTriangle,
@@ -366,6 +366,8 @@ function App() {
   const [answers, setAnswers] = useState(defaultAnswers);
   const [isArchitectureOpen, setIsArchitectureOpen] = useState(false);
   const [locale, setLocale] = useState('zh-TW');
+  const [installPrompt, setInstallPrompt] = useState(null);
+  const [isInstalled, setIsInstalled] = useState(false);
   const printableRef = useRef(null);
   const ui = useMemo(() => getUiMessages(locale), [locale]);
   const localizedQuestions = useMemo(() => questionnaire.map((question) => localizeQuestion(question, locale)), [locale]);
@@ -401,6 +403,58 @@ function App() {
   }).length;
 
   const progress = Math.round((answeredCount / questionnaire.length) * 100);
+
+  useEffect(() => {
+    document.documentElement.lang = locale === 'zh-TW' ? 'zh-Hant' : locale;
+    document.title = ui.seoTitle;
+
+    const descriptionMeta = document.querySelector('meta[name="description"]');
+    const ogTitleMeta = document.querySelector('meta[property="og:title"]');
+    const ogDescriptionMeta = document.querySelector('meta[property="og:description"]');
+    const twitterTitleMeta = document.querySelector('meta[name="twitter:title"]');
+    const twitterDescriptionMeta = document.querySelector('meta[name="twitter:description"]');
+
+    if (descriptionMeta) {
+      descriptionMeta.setAttribute('content', ui.seoDescription);
+    }
+
+    if (ogTitleMeta) {
+      ogTitleMeta.setAttribute('content', ui.seoTitle);
+    }
+
+    if (ogDescriptionMeta) {
+      ogDescriptionMeta.setAttribute('content', ui.seoDescription);
+    }
+
+    if (twitterTitleMeta) {
+      twitterTitleMeta.setAttribute('content', ui.seoTitle);
+    }
+
+    if (twitterDescriptionMeta) {
+      twitterDescriptionMeta.setAttribute('content', ui.seoDescription);
+    }
+  }, [locale, ui]);
+
+  useEffect(() => {
+    const onBeforeInstallPrompt = (event) => {
+      event.preventDefault();
+      setInstallPrompt(event);
+    };
+
+    const onInstalled = () => {
+      setIsInstalled(true);
+      setInstallPrompt(null);
+    };
+
+    setIsInstalled(window.matchMedia('(display-mode: standalone)').matches);
+    window.addEventListener('beforeinstallprompt', onBeforeInstallPrompt);
+    window.addEventListener('appinstalled', onInstalled);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', onBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', onInstalled);
+    };
+  }, []);
 
   const handleProfileChange = (field, value) => {
     setProjectProfile((current) => ({
@@ -518,6 +572,16 @@ function App() {
     pdf.save(`${projectProfile.projectName || 'azure-request'}-application.pdf`);
   };
 
+  const installApplication = async () => {
+    if (!installPrompt) {
+      return;
+    }
+
+    await installPrompt.prompt();
+    await installPrompt.userChoice;
+    setInstallPrompt(null);
+  };
+
   return (
     <div className="app-shell">
       <div className="ambient ambient-left" />
@@ -553,6 +617,12 @@ function App() {
               <Eye size={18} />
               {ui.previewDiagram}
             </button>
+            {installPrompt && !isInstalled ? (
+              <button type="button" className="ghost-button install-button" onClick={installApplication}>
+                <FileDown size={18} />
+                {ui.installApp}
+              </button>
+            ) : null}
             <label className="locale-switcher">
               <span>{ui.language}</span>
               <select value={locale} onChange={(event) => setLocale(event.target.value)}>
@@ -561,6 +631,12 @@ function App() {
                 ))}
               </select>
             </label>
+            {installPrompt && !isInstalled ? (
+              <div className="status-pill install-pill">
+                <Sparkles size={16} />
+                {ui.installReady}
+              </div>
+            ) : null}
             <div className="status-pill">
               <Sparkles size={16} />
               {ui.completion} {progress}%

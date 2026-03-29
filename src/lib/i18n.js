@@ -20,6 +20,10 @@ const uiMessages = {
     databaseSku: '資料庫 SKU',
     monthlyEstimate: '月費粗估',
     monthlyUnit: 'USD / 月',
+    installApp: '安裝 App',
+    installReady: '可安裝離線版',
+    seoTitle: 'Azure Intake Studio | Azure 服務與權限申請產生器',
+    seoDescription: '多語系 Azure 平台申請問卷，支援服務評估、RBAC 權限、成本估算、架構圖、PDF/Markdown 匯出與 PWA 離線使用。',
     projectIntake: 'Project Intake',
     basicInfo: '專案基本資料',
     reportTitle: '平台申請建議',
@@ -94,6 +98,10 @@ const uiMessages = {
     databaseSku: 'Database SKU',
     monthlyEstimate: 'Monthly Estimate',
     monthlyUnit: 'USD / month',
+    installApp: 'Install app',
+    installReady: 'Installable offline app',
+    seoTitle: 'Azure Intake Studio | Azure Service and Access Request Generator',
+    seoDescription: 'A multilingual Azure intake questionnaire with RBAC recommendations, cost estimation, architecture diagrams, exports, and offline PWA support.',
     projectIntake: 'Project Intake',
     basicInfo: 'Project Information',
     reportTitle: 'Generated Recommendation',
@@ -168,6 +176,10 @@ const uiMessages = {
     databaseSku: 'DB SKU',
     monthlyEstimate: '月額概算',
     monthlyUnit: 'USD / 月',
+    installApp: 'アプリをインストール',
+    installReady: 'オフライン版をインストール可能',
+    seoTitle: 'Azure Intake Studio | Azure サービス・権限申請書ジェネレーター',
+    seoDescription: '多言語対応の Azure 申請アンケート。RBAC 推奨、コスト見積、構成図、PDF/Markdown 出力、PWA オフライン利用をサポートします。',
     projectIntake: 'Project Intake',
     basicInfo: 'プロジェクト基本情報',
     reportTitle: '申請推奨結果',
@@ -267,6 +279,13 @@ const questionTranslations = {
 };
 
 const optionTranslations = {
+  projectType: {
+    'web-app': { en: 'Enterprise web platform', ja: '企業向け Web プラットフォーム' },
+    'api-platform': { en: 'API / microservice platform', ja: 'API / マイクロサービス基盤' },
+    'internal-tool': { en: 'Internal operations tool', ja: '社内業務ツール' },
+    'integration-hub': { en: 'Integration hub / BFF / API Gateway', ja: '統合ハブ / BFF / API Gateway' },
+    'ai-assistant': { en: 'AI assistant / generative platform', ja: 'AI アシスタント / 生成 AI 基盤' }
+  },
   region: {
     'east-asia': { en: 'East Asia', ja: '東アジア' },
     taiwan: { en: 'Taiwan', ja: '台湾' },
@@ -276,6 +295,34 @@ const optionTranslations = {
     'japan-east': { en: 'Japan East', ja: '日本東部' },
     'japan-west': { en: 'Japan West', ja: '日本西部' },
     'australia-east': { en: 'Australia East', ja: 'オーストラリア東部' }
+  },
+  billingPriority: {
+    prototype: { en: 'Low-cost PoC first', ja: '低コスト PoC 優先' },
+    balanced: { en: 'Balanced cost and stability', ja: 'コストと安定性のバランス' },
+    resilient: { en: 'Stability and scalability first', ja: '安定性と拡張性を優先' },
+    premium: { en: 'High availability and performance first', ja: '高可用性と高性能を優先' },
+    finops: { en: 'FinOps tracking required', ja: 'FinOps 追跡が必要' }
+  },
+  dataSensitivity: {
+    public: { en: 'Public or low sensitivity data', ja: '公開または低機密データ' },
+    internal: { en: 'Internal data', ja: '社内データ' },
+    confidential: { en: 'Confidential data', ja: '機密データ' },
+    restricted: { en: 'Restricted or regulated data', ja: '規制対象または高機密データ' }
+  },
+  databaseNeed: {
+    sql: { en: 'Relational transaction database (Azure SQL)', ja: 'リレーショナル DB (Azure SQL)' },
+    postgres: { en: 'Open-source database (PostgreSQL)', ja: 'オープンソース DB (PostgreSQL)' },
+    none: { en: 'No structured database needed now', ja: '現時点では構造化 DB 不要' },
+    'hybrid-db': { en: 'SQL and unstructured storage together', ja: 'SQL と非構造化ストレージを併用' }
+  },
+  databaseTier: {
+    'sql-s0': { en: 'Azure SQL S0', ja: 'Azure SQL S0' },
+    'sql-s1': { en: 'Azure SQL S1', ja: 'Azure SQL S1' },
+    'sql-s2': { en: 'Azure SQL S2', ja: 'Azure SQL S2' },
+    'postgres-b1ms': { en: 'PostgreSQL B1ms', ja: 'PostgreSQL B1ms' },
+    'postgres-gp': { en: 'PostgreSQL General Purpose', ja: 'PostgreSQL General Purpose' },
+    'postgres-mo': { en: 'PostgreSQL Memory Optimized', ja: 'PostgreSQL Memory Optimized' },
+    'not-applicable': { en: 'Not applicable / undecided', ja: '該当なし / 未決定' }
   },
   databasePerformance: {
     'sql-dtu': { en: 'Azure SQL DTU model', ja: 'Azure SQL DTU モデル' },
@@ -290,6 +337,213 @@ const optionTranslations = {
     'geo-redundant': { en: 'Geo-redundant backup', ja: '地理冗長バックアップ' },
     'long-term-retention': { en: 'Long-term retention and archive', ja: '長期保持と監査アーカイブ' },
     'not-applicable': { en: 'Not applicable / platform default', ja: '該当なし / プラットフォーム既定' }
+  },
+  queryStoreAccess: {
+    'query-read': { en: 'View Query Store and execution plans', ja: 'Query Store と実行計画を参照' },
+    'query-admin': { en: 'Tune Query Store and performance settings', ja: 'Query Store と性能設定を調整' },
+    'not-applicable': { en: 'Not applicable', ja: '該当なし' }
+  },
+  blobUsage: {
+    'static-assets': { en: 'Static site or frontend assets', ja: '静的サイトまたはフロント資産' },
+    'report-export': { en: 'Report export and file download', ja: 'レポート出力とファイル配布' },
+    'private-upload': { en: 'Private uploads and archival', ja: '社内アップロードと保管' },
+    'hot-media': { en: 'Hot media or public downloads', ja: '高頻度メディアまたは公開配布' },
+    'rag-kb': { en: 'AI knowledge base source', ja: 'AI ナレッジベースの文書ソース' },
+    none: { en: 'Do not use Blob Storage', ja: 'Blob Storage を使用しない' }
+  },
+  appServicePlan: {
+    b1: { en: 'B1', ja: 'B1' },
+    s1: { en: 'S1', ja: 'S1' },
+    s2: { en: 'S2', ja: 'S2' },
+    p1v3: { en: 'P1v3', ja: 'P1v3' },
+    p2v3: { en: 'P2v3', ja: 'P2v3' },
+    'container-plan': { en: 'Container on App Service', ja: 'App Service 上のコンテナー' },
+    'not-applicable': { en: 'Undecided / do not use App Service', ja: '未定 / App Service を使用しない' }
+  },
+  appServiceRuntime: {
+    dotnet: { en: '.NET', ja: '.NET' },
+    node: { en: 'Node.js', ja: 'Node.js' },
+    python: { en: 'Python', ja: 'Python' },
+    java: { en: 'Java', ja: 'Java' },
+    php: { en: 'PHP', ja: 'PHP' },
+    'static-web': { en: 'Static + API', ja: 'Static + API' },
+    container: { en: 'Custom Container', ja: 'Custom Container' },
+    'not-applicable': { en: 'Undecided / do not use App Service runtime', ja: '未定 / App Service Runtime を使用しない' }
+  },
+  databaseAccess: {
+    'read-only': { en: 'Read-only queries / reporting', ja: '参照専用 / レポート' },
+    'read-write': { en: 'Transactional read/write', ja: 'トランザクションの読書き' },
+    'schema-change': { en: 'Schema changes / migrations', ja: 'スキーマ変更 / migration' },
+    'ops-admin': { en: 'Full DBA or platform administration', ja: 'DBA / プラットフォームによる完全管理' },
+    'not-applicable': { en: 'Not applicable', ja: '該当なし' }
+  },
+  internetExposure: {
+    public: { en: 'Yes, public internet exposure required', ja: 'はい、インターネット公開が必要' },
+    hybrid: { en: 'Partially public, core services private', ja: '一部公開、コアは内部のみ' },
+    private: { en: 'No, internal or restricted sources only', ja: 'いいえ、内部または制限された送信元のみ' }
+  },
+  externalAccessControl: {
+    'public-with-waf': { en: 'Public service protected by WAF', ja: 'WAF で保護された公開サービス' },
+    'ip-whitelist': { en: 'Allow only specified external IPs', ja: '指定した外部 IP のみ許可' },
+    'private-only': { en: 'Internal network only', ja: '内部ネットワークのみ' },
+    'partner-vpn': { en: 'Partner access through VPN/private link', ja: 'VPN / 専用線経由のパートナー接続' }
+  },
+  apiManagementNeed: {
+    'external-api': { en: 'Need an external API gateway', ja: '外部向け API Gateway が必要' },
+    'internal-api': { en: 'Need internal API governance', ja: '内部 API ガバナンスが必要' },
+    'hybrid-api': { en: 'Need both internal and external API management', ja: '内外 API 管理の両方が必要' },
+    none: { en: 'No APIM needed now', ja: '現時点で APIM は不要' }
+  },
+  identityModel: {
+    'entra-id': { en: 'Enterprise accounts and SSO', ja: '企業アカウントと SSO' },
+    b2b: { en: 'Enterprise accounts with external collaborators', ja: '企業アカウント + 外部協力者' },
+    local: { en: 'Local application accounts', ja: 'アプリケーション独自アカウント' },
+    hybrid: { en: 'Hybrid of enterprise SSO and app accounts', ja: '企業 SSO とアプリ独自アカウントの併用' }
+  },
+  secretAccess: {
+    'runtime-read': { en: 'Application runtime only reads secrets', ja: '実行時にシークレットを参照のみ' },
+    'manage-secrets': { en: 'Platform team manages and rotates secrets', ja: 'プラットフォーム管理者がシークレットを管理・更新' },
+    hybrid: { en: 'Both read and manage secrets', ja: '参照と管理の両方が必要' },
+    none: { en: 'Do not use Key Vault now', ja: '現時点で Key Vault を使用しない' }
+  },
+  governanceControls: {
+    'azure-devops': { en: 'Azure DevOps Repo / Pipeline / Service Connection', ja: 'Azure DevOps Repo / Pipeline / Service Connection' },
+    'arm-rbac': { en: 'Azure Resource Manager and RBAC assignment', ja: 'Azure Resource Manager と RBAC 割当' },
+    mfa: { en: 'MFA / Conditional Access', ja: 'MFA / 条件付きアクセス' },
+    none: { en: 'No additional governance controls now', ja: '追加ガバナンス制御は不要' }
+  },
+  generatorAccess: {
+    'key-only': { en: 'Provide generator key only', ja: 'Generator Key のみ提供' },
+    'url-only': { en: 'Provide endpoint URL only', ja: 'Endpoint URL のみ提供' },
+    'key-and-url': { en: 'Provide both key and URL', ja: 'Key と URL の両方を提供' },
+    'not-applicable': { en: 'Not applicable', ja: '該当なし' }
+  },
+  aiCapability: {
+    'gen-ai': { en: 'Generative Q&A / content creation', ja: '生成 AI / コンテンツ生成' },
+    ocr: { en: 'OCR / document recognition', ja: 'OCR / 文書認識' },
+    speech: { en: 'Speech recognition / TTS', ja: '音声認識 / TTS' },
+    agent: { en: 'AI agent / tool calling', ja: 'AI Agent / Tool Calling' },
+    none: { en: 'No AI capability needed now', ja: '現時点で AI 機能は不要' }
+  },
+  opsNeeds: {
+    monitoring: { en: 'Centralized monitoring and alerts', ja: '集中監視とアラート' },
+    backup: { en: 'Backup and restore', ja: 'バックアップと復元' },
+    container: { en: 'Container-based deployment', ja: 'コンテナー配備' },
+    'api-observability': { en: 'API monitoring and traffic analytics', ja: 'API 監視とトラフィック分析' },
+    'security-audit': { en: 'Security audit and compliance review', ja: 'セキュリティ監査とコンプライアンス確認' },
+    none: { en: 'No additional operations capability needed', ja: '追加の運用機能は不要' }
+  },
+  scaleExpectation: {
+    standard: { en: 'Standard business workload', ja: '標準的な業務システム' },
+    'mission-critical': { en: 'High traffic or mission critical', ja: '高トラフィックまたは重要システム' },
+    'global-multi-region': { en: 'Global multi-region or DR', ja: 'グローバル多地域または災害対策' },
+    'not-applicable': { en: 'Undecided / platform default', ja: '未定 / プラットフォーム既定' }
+  }
+};
+
+const optionDescriptionTranslations = {
+  projectType: {
+    'web-app': { en: 'Portal, admin console, and business web application', ja: 'ポータル、管理画面、業務 Web アプリ' },
+    'api-platform': { en: 'Internal or external APIs and integration services', ja: '内外 API と統合サービス' },
+    'internal-tool': { en: 'Workflow automation, reports, and internal support tools', ja: '業務自動化、レポート、社内支援ツール' },
+    'integration-hub': { en: 'Governed integration layer for internal and external systems', ja: '内外システムを統合するガバナンス層' },
+    'ai-assistant': { en: 'Uses OpenAI, search, and controlled document sources', ja: 'OpenAI、検索、文書ソース制御を利用' }
+  },
+  region: {
+    'east-asia': { en: 'Low-latency deployment near Hong Kong and Taiwan', ja: '香港・台湾近接の低遅延配置' },
+    taiwan: { en: 'For Taiwan-adjacent experience and data locality planning', ja: '台湾近接体験やデータ所在地検討向け' },
+    'southeast-asia': { en: 'Singapore region for common enterprise production use', ja: '一般的な本番利用で多いシンガポール地域' },
+    'north-america': { en: 'Suitable for global or North America-centric services', ja: '北米中心またはグローバル向け' },
+    'west-europe': { en: 'Suitable for Europe-focused users and redundancy planning', ja: '欧州ユーザーと冗長構成向け' },
+    'japan-east': { en: 'Suitable for Japan/Korea users and regional recovery', ja: '日本・韓国向けと地域 DR 向け' },
+    'japan-west': { en: 'Useful for Japan West landing or cross-region redundancy', ja: '日本西部配置やクロスリージョン冗長向け' },
+    'australia-east': { en: 'Suitable for extended APAC deployment', ja: 'APAC 拡張配置向け' }
+  },
+  billingPriority: {
+    prototype: { en: 'Minimize cost for proof-of-concept delivery', ja: 'PoC のため最小コストを優先' },
+    balanced: { en: 'Default production balance between cost and resilience', ja: '本番向けの標準バランス' },
+    resilient: { en: 'Favor resilience and future scaling over lowest cost', ja: '最低コストより安定性と拡張性を優先' },
+    premium: { en: 'Optimize for performance and availability', ja: '性能と可用性を重視' },
+    finops: { en: 'Require stronger cost tagging and operational tracking', ja: 'コストタグと運用追跡を強化' }
+  },
+  databaseTier: {
+    'sql-s0': { en: 'Small production environment with light transaction load', ja: '軽いトランザクション向け小規模本番' },
+    'sql-s1': { en: 'General production with medium transaction volume', ja: '中程度トランザクションの一般本番' },
+    'sql-s2': { en: 'Higher concurrency and more critical workloads', ja: '高同時実行・重要業務向け' },
+    'postgres-b1ms': { en: 'Development, testing, and light internal workloads', ja: '開発・検証・軽量社内用途' },
+    'postgres-gp': { en: 'General production PostgreSQL workload', ja: '一般的な本番 PostgreSQL ワークロード' },
+    'postgres-mo': { en: 'High concurrency and memory-heavy workload', ja: '高同時実行・メモリ重視の負荷' }
+  },
+  databasePerformance: {
+    'sql-dtu': { en: 'Estimate combined transaction and query capacity through DTUs', ja: 'DTU でトランザクションと照会負荷を評価' },
+    'sql-vcore': { en: 'Plan compute and memory explicitly with vCore sizing', ja: 'vCore で CPU・メモリを明示的に計画' },
+    'postgres-vcore': { en: 'Plan PostgreSQL compute and storage separately', ja: 'PostgreSQL の計算資源とストレージを個別計画' },
+    'memory-optimized': { en: 'For search-heavy or memory-intensive workloads', ja: '検索集中または高メモリ負荷向け' }
+  },
+  databaseBackup: {
+    'local-retention': { en: 'Suitable for general restore and routine protection', ja: '一般的な復旧と日常保護向け' },
+    pitr: { en: 'Restore to a precise point in time', ja: '特定時点への復元が必要' },
+    'geo-redundant': { en: 'Cross-region backup and disaster recovery capability', ja: '異地域バックアップと DR に対応' },
+    'long-term-retention': { en: 'For compliance-driven retention and archival', ja: 'コンプライアンス保管や長期保存向け' }
+  },
+  queryStoreAccess: {
+    'query-read': { en: 'Analyze performance trends and plans', ja: '性能傾向と実行計画を分析' },
+    'query-admin': { en: 'Includes forcing plans and advanced tuning', ja: 'プラン固定や高度なチューニングを含む' }
+  },
+  blobUsage: {
+    'static-assets': { en: 'Store frontend files, images, and static content', ja: 'フロント資産、画像、静的コンテンツを保存' },
+    'report-export': { en: 'Used for system-generated Excel, CSV, or PDF outputs', ja: 'Excel、CSV、PDF 出力に使用' },
+    'private-upload': { en: 'Restricted to authorized users and applications', ja: '許可された利用者とアプリに限定' },
+    'hot-media': { en: 'Suitable for CDN-backed or high-read scenarios', ja: 'CDN 連携や高頻度読取に適合' },
+    'rag-kb': { en: 'Document source for Azure OpenAI and AI Search', ja: 'Azure OpenAI と AI Search の文書ソース' }
+  },
+  appServicePlan: {
+    b1: { en: 'PoC and development validation', ja: 'PoC / 開発検証向け' },
+    s1: { en: 'General production environment', ja: '一般的な本番環境' },
+    s2: { en: 'Medium-to-high traffic production workload', ja: '中高負荷の本番環境' },
+    p1v3: { en: 'Higher performance and stronger isolation', ja: '高性能とより良い分離' },
+    p2v3: { en: 'High traffic multi-instance production system', ja: '高トラフィック・多インスタンス本番' },
+    'container-plan': { en: 'Deploy with container images', ja: 'コンテナーイメージで配置' },
+    'not-applicable': { en: 'Keep other compute options open for now', ja: '他の計算基盤を保留する' }
+  },
+  appServiceRuntime: {
+    dotnet: { en: 'Common choice for enterprise systems and APIs', ja: '企業システムや API で一般的' },
+    node: { en: 'JavaScript or TypeScript based backend/frontend services', ja: 'JavaScript / TypeScript サービス向け' },
+    python: { en: 'Suitable for AI and data processing workloads', ja: 'AI やデータ処理に適合' },
+    java: { en: 'Traditional enterprise platforms and large services', ja: '伝統的な企業基盤や大規模サービス向け' },
+    php: { en: 'Legacy portals or CMS-style applications', ja: '既存ポータルや CMS 系アプリ向け' },
+    'static-web': { en: 'Static frontend with backend APIs', ja: '静的フロントエンド + API' },
+    container: { en: 'Need custom runtime and image control', ja: '独自 runtime とイメージ制御が必要' },
+    'not-applicable': { en: 'Keep runtime decision for later', ja: 'Runtime 決定を後回しにする' }
+  },
+  externalAccessControl: {
+    'public-with-waf': { en: 'Good for public portals and external users', ja: '公開ポータルや外部利用者向け' },
+    'ip-whitelist': { en: 'Best for fixed partner or office source ranges', ja: '固定送信元のパートナーや拠点向け' },
+    'private-only': { en: 'Access through Private Endpoint or VNet only', ja: 'Private Endpoint / VNet のみで接続' },
+    'partner-vpn': { en: 'For B2B or cross-organization connectivity', ja: 'B2B や組織間接続向け' }
+  },
+  apiManagementNeed: {
+    'external-api': { en: 'Rate limit, key control, and developer portal needed', ja: '流量制御、キー管理、開発者ポータルが必要' },
+    'internal-api': { en: 'Central governance for internal service APIs', ja: '内部 API の集中ガバナンス' },
+    'hybrid-api': { en: 'Both external publication and internal integration are needed', ja: '外部公開と内部連携の両方が必要' }
+  },
+  governanceControls: {
+    'azure-devops': { en: 'Project, repo, pipeline, or environment access required', ja: 'プロジェクト、Repo、Pipeline、環境の権限が必要' },
+    'arm-rbac': { en: 'Manage infrastructure via ARM, Bicep, or Terraform', ja: 'ARM、Bicep、Terraform で基盤管理' },
+    mfa: { en: 'Protect sign-in and privileged identities', ja: 'サインインと高権限 ID を保護' }
+  },
+  generatorAccess: {
+    'key-only': { en: 'URL is retained by the platform and only the key is delivered', ja: 'URL はプラットフォーム管理、Key のみ提供' },
+    'url-only': { en: 'Only the endpoint URL is shared with the integration team', ja: '統合チームへ URL のみ共有' },
+    'key-and-url': { en: 'Deliver both through audited Key Vault handling', ja: 'Key Vault と監査統制のもとで両方提供' }
+  },
+  opsNeeds: {
+    monitoring: { en: 'Centralized monitoring, queries, and alerting', ja: '集中監視、クエリ、アラート' },
+    backup: { en: 'Operational backup and restore capability', ja: '運用上のバックアップと復元' },
+    container: { en: 'Container-based delivery or image promotion flow', ja: 'コンテナー配備やイメージ昇格が必要' },
+    'api-observability': { en: 'Track API latency, errors, and traffic patterns', ja: 'API 遅延、エラー、流量傾向を把握' },
+    'security-audit': { en: 'Provide auditability and compliance visibility', ja: '監査証跡とコンプライアンス可視化' },
+    none: { en: 'Use platform defaults or minimal operations features first', ja: 'まずは最小限の運用機能で開始' }
   }
 };
 
@@ -314,7 +568,8 @@ export const localizeQuestion = (question, locale) => {
     title: questionTranslations[question.id]?.[locale] ?? question.title,
     options: question.options.map((option) => ({
       ...option,
-      label: optionTranslations[question.id]?.[option.value]?.[locale] ?? option.label
+      label: optionTranslations[question.id]?.[option.value]?.[locale] ?? option.label,
+      description: optionDescriptionTranslations[question.id]?.[option.value]?.[locale] ?? option.description
     }))
   };
 };

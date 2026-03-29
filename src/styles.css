@@ -30,6 +30,7 @@
 body {
   margin: 0;
   min-width: 320px;
+  background-attachment: fixed;
 }
 
 button,
@@ -93,6 +94,19 @@ button {
   background: var(--panel);
   border: 1px solid var(--border);
   box-shadow: var(--shadow);
+}
+
+.panel {
+  position: relative;
+  overflow: hidden;
+}
+
+.panel::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(17, 138, 178, 0.45), rgba(255, 255, 255, 0));
 }
 
 .hero-copy {
@@ -166,6 +180,13 @@ button {
   border: 0;
   background: transparent;
   color: var(--navy);
+  font-weight: 700;
+  outline: none;
+}
+
+.install-pill {
+  background: rgba(17, 138, 178, 0.14);
+  color: #0a637e;
 }
 
 .primary-button,
@@ -220,6 +241,7 @@ button {
   display: flex;
   flex-direction: column;
   gap: 22px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(241, 247, 252, 0.84));
 }
 
 .hero-panel-top,
@@ -288,6 +310,10 @@ label span {
   gap: 10px;
   margin: 0;
   padding-left: 18px;
+}
+
+.summary-list li::marker {
+  color: var(--sky);
 }
 
 .content-grid {
@@ -493,6 +519,17 @@ textarea:focus {
   border-radius: 20px;
   background: rgba(245, 248, 252, 0.78);
   border: 1px solid rgba(17, 36, 56, 0.08);
+  position: relative;
+}
+
+.question-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  border-radius: 20px 0 0 20px;
+  background: linear-gradient(180deg, var(--sky), var(--amber));
+  opacity: 0.7;
 }
 
 .option-grid {
@@ -528,6 +565,7 @@ textarea:focus {
 
 .option-card p {
   margin-top: 6px;
+  line-height: 1.6;
 }
 
 .option-card.active,
@@ -560,11 +598,16 @@ textarea:focus {
   margin-top: 24px;
 }
 
+.report-section h3 {
+  margin-bottom: 12px;
+}
+
 .insight-card {
   padding: 18px;
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.84);
   border: 1px solid rgba(17, 36, 56, 0.08);
+  box-shadow: 0 10px 28px rgba(17, 36, 56, 0.04);
 }
 
 .compact-card small {
@@ -700,6 +743,11 @@ textarea:focus {
   color: var(--slate);
 }
 
+.architecture-dialog .azure-architecture-svg {
+  margin-left: auto;
+  margin-right: auto;
+}
+
 .architecture-grid {
   grid-template-columns: repeat(5, minmax(0, 1fr));
   align-items: start;
@@ -786,6 +834,11 @@ textarea:focus {
   .header-actions,
   .hero-actions {
     width: 100%;
+  }
+
+  .locale-switcher {
+    width: 100%;
+    justify-content: space-between;
   }
 
   .header-actions .ghost-button,

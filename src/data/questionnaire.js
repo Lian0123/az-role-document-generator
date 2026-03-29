@@ -755,7 +755,8 @@ export const questionnaire = [
       { value: 's2', label: 'S2', description: '中高流量正式環境', services: ['appService', 'appInsights'], roles: ['planContributor', 'monitoringContributor'] },
       { value: 'p1v3', label: 'P1v3', description: '高效能與較佳隔離', services: ['appService', 'appInsights'], roles: ['planContributor', 'monitoringContributor'] },
       { value: 'p2v3', label: 'P2v3', description: '高流量與多實例生產系統', services: ['appService', 'appInsights', 'logAnalytics'], roles: ['planContributor', 'monitoringContributor'] },
-      { value: 'container-plan', label: 'Container on App Service', description: '以容器映像部署', services: ['appService', 'containerRegistry'], roles: ['planContributor', 'containerRegistryReader'] }
+      { value: 'container-plan', label: 'Container on App Service', description: '以容器映像部署', services: ['appService', 'containerRegistry'], roles: ['planContributor', 'containerRegistryReader'] },
+      { value: 'not-applicable', label: '尚未決定 / 不使用 App Service', description: '保留其他運算方案或後續再決定', services: [], roles: [] }
     ]
   },
   {
@@ -776,7 +777,8 @@ export const questionnaire = [
       { value: 'java', label: 'Java', description: '傳統企業服務與中大型平台', services: ['appService'], roles: ['appServiceContributor'] },
       { value: 'php', label: 'PHP', description: '舊版入口網站或 CMS 類型應用', services: ['appService'], roles: ['appServiceContributor'] },
       { value: 'static-web', label: 'Static + API', description: '前端靜態頁面搭配後端 API', services: ['appService', 'storage'], roles: ['appServiceContributor', 'storageBlobDataReader'] },
-      { value: 'container', label: 'Custom Container', description: '需要自訂 runtime 與映像控制', services: ['appService', 'containerRegistry'], roles: ['appServiceContributor', 'containerRegistryReader'] }
+      { value: 'container', label: 'Custom Container', description: '需要自訂 runtime 與映像控制', services: ['appService', 'containerRegistry'], roles: ['appServiceContributor', 'containerRegistryReader'] },
+      { value: 'not-applicable', label: '尚未決定 / 不使用 App Service Runtime', description: '保留其他部署方式或稍後決定', services: [], roles: [] }
     ]
   },
   {
@@ -1193,6 +1195,13 @@ export const questionnaire = [
         label: '安全稽核與合規檢視',
         services: ['logAnalytics', 'keyVault'],
         roles: ['securityReader', 'keyVaultSecretsOfficer']
+      },
+      {
+        value: 'none',
+        label: '暫不需要額外維運能力',
+        description: '先以基本監控或平台預設交付',
+        services: [],
+        roles: []
       }
     ]
   },
@@ -1225,6 +1234,12 @@ export const questionnaire = [
         label: '全球多區或跨區容災',
         services: ['frontDoor', 'waf', 'logAnalytics', 'appInsights'],
         roles: ['planContributor', 'networkContributor', 'monitoringContributor']
+      },
+      {
+        value: 'not-applicable',
+        label: '尚未決定 / 以平台預設為主',
+        services: [],
+        roles: []
       }
     ]
   }
