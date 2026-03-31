@@ -407,6 +407,46 @@ function PrintableReport({ profile, result, ui, regionDisplay, externalAccessDis
           </tbody>
         </table>
       </section>
+
+      <section className="print-section">
+        <h2>{ui.serviceIamControls}</h2>
+        <div className="print-grid">
+          {(result.serviceIamProfile.labels.length ? result.serviceIamProfile.labels : [ui.notSpecified]).map((label, index) => (
+            <div key={`${label}-${index}`}>
+              <strong>{label}</strong>
+              <span>{result.serviceIamProfile.guidance[index] || ui.notSpecified}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="print-section">
+        <h2>{ui.azureCliCommands}</h2>
+        <div className="print-cli-list">
+          {result.azureCliPlan.commandGroups.map((group) => (
+            <article key={group.title} className="print-cli-card">
+              <strong>{group.title}</strong>
+              <pre>{group.commands.join('\n')}</pre>
+              {group.notes?.length ? (
+                <ul>
+                  {group.notes.map((note) => (
+                    <li key={note}>{note}</li>
+                  ))}
+                </ul>
+              ) : null}
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="print-section">
+        <h2>{ui.cliManualNotes}</h2>
+        <ul className="print-bullet-list">
+          {result.azureCliPlan.manualSteps.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ul>
+      </section>
     </div>
   );
 }
@@ -1089,6 +1129,66 @@ function App() {
                   </div>
                   <p>{permission.scope}</p>
                   <small>{permission.justification}</small>
+                </article>
+              ))}
+            </div>
+          </section>
+
+          <section className="report-section">
+            <h3>{ui.serviceIamControls}</h3>
+            <div className="stack-list compact-list">
+              {result.serviceIamProfile.labels.length ? result.serviceIamProfile.labels.map((label, index) => (
+                <article key={`${label}-${index}`} className="insight-card compact-card">
+                  <div className="callout-header inline-start">
+                    <BadgeCheck size={16} />
+                    <strong>{label}</strong>
+                  </div>
+                  <small>{result.serviceIamProfile.guidance[index]}</small>
+                </article>
+              )) : (
+                <article className="insight-card compact-card">
+                  <div className="callout-header inline-start">
+                    <BadgeCheck size={16} />
+                    <strong>{ui.notSpecified}</strong>
+                  </div>
+                  <small>{ui.serviceIamHint}</small>
+                </article>
+              )}
+            </div>
+          </section>
+
+          <section className="report-section">
+            <h3>{ui.azureCliCommands}</h3>
+            <div className="stack-list">
+              {result.azureCliPlan.commandGroups.map((group) => (
+                <article key={group.title} className="insight-card cli-card">
+                  <div className="insight-title-row">
+                    <strong>{group.title}</strong>
+                    <span className="priority priority-建議">CLI</span>
+                  </div>
+                  <pre className="cli-pre">{group.commands.join('\n')}</pre>
+                  {group.notes?.length ? (
+                    <div className="insight-meta cli-note-list">
+                      {group.notes.map((note) => (
+                        <span key={note}>{note}</span>
+                      ))}
+                    </div>
+                  ) : null}
+                </article>
+              ))}
+            </div>
+          </section>
+
+          <section className="report-section">
+            <h3>{ui.cliManualNotes}</h3>
+            <div className="stack-list compact-list">
+              {result.azureCliPlan.manualSteps.map((item) => (
+                <article key={item} className="insight-card compact-card">
+                  <div className="callout-header inline-start">
+                    <AlertTriangle size={16} />
+                    <strong>{ui.notes}</strong>
+                  </div>
+                  <small>{item}</small>
                 </article>
               ))}
             </div>

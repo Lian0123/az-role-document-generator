@@ -79,6 +79,11 @@ export const roleCatalog = {
     scope: 'Azure Key Vault',
     justification: '供執行階段讀取已授權的機密內容。'
   },
+  managedIdentityOperator: {
+    name: 'Managed Identity Operator',
+    scope: 'User Assigned Managed Identity',
+    justification: '建立、指派與維護可重用的 Managed Identity。'
+  },
   networkContributor: {
     name: 'Network Contributor',
     scope: 'VNet / Application Gateway / WAF',
@@ -1341,6 +1346,58 @@ export const questionnaire = [
       {
         value: 'none',
         label: '暫不使用 Key Vault',
+        services: [],
+        roles: []
+      }
+    ]
+  },
+  {
+    id: 'serviceIamControls',
+    section: '身份與權限',
+    title: '服務 IAM 控制策略需要哪些設定？',
+    type: 'multi',
+    references: [
+      {
+        title: 'Azure Managed Identity 概觀',
+        url: 'https://learn.microsoft.com/entra/identity/managed-identities-azure-resources/overview'
+      },
+      {
+        title: 'Azure RBAC 最小權限實務',
+        url: 'https://learn.microsoft.com/azure/role-based-access-control/best-practices'
+      }
+    ],
+    options: [
+      {
+        value: 'system-assigned-mi',
+        label: '執行階段服務啟用 System-assigned Managed Identity',
+        description: '讓 App Service / Functions 直接以受控身分存取 Key Vault、Storage、Service Bus 等資源',
+        services: ['keyVault'],
+        roles: []
+      },
+      {
+        value: 'user-assigned-mi',
+        label: '使用 User-assigned Managed Identity 供多服務共用',
+        description: '適合多個服務共用同一組服務身分與 RBAC 指派',
+        services: ['keyVault'],
+        roles: ['managedIdentityOperator']
+      },
+      {
+        value: 'least-privilege-rbac',
+        label: '服務主體與自動化帳號需最小權限 RBAC',
+        description: '要求服務帳號只能在限定 scope 執行必要操作，避免使用長期高權限身分',
+        services: ['azureResourceManager'],
+        roles: []
+      },
+      {
+        value: 'privileged-approval',
+        label: '高權限角色需經審批與限時授權',
+        description: '適合正式環境的高權限變更與稽核要求',
+        services: ['mfa', 'entraId'],
+        roles: ['conditionalAccessAdministrator']
+      },
+      {
+        value: 'none',
+        label: '暫不需要額外服務 IAM 控制',
         services: [],
         roles: []
       }

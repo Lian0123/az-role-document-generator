@@ -535,6 +535,48 @@ textarea:focus {
   margin-top: 28px;
 }
 
+.print-bullet-list {
+  margin: 12px 0 0;
+  padding-left: 20px;
+}
+
+.print-cli-list {
+  display: grid;
+  gap: 14px;
+  margin-top: 12px;
+}
+
+.print-cli-card {
+  padding: 16px;
+  border: 1px solid rgba(17, 36, 56, 0.12);
+  border-radius: 12px;
+  background: #f7fbff;
+}
+
+.print-cli-card strong {
+  display: block;
+  margin-bottom: 10px;
+}
+
+.print-cli-card pre,
+.cli-pre {
+  margin: 0;
+  padding: 14px;
+  border-radius: 14px;
+  background: #112438;
+  color: #edf5fc;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 0.83rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.print-cli-card ul {
+  margin: 12px 0 0;
+  padding-left: 18px;
+}
+
 .print-table {
   width: 100%;
   border-collapse: collapse;
@@ -675,6 +717,19 @@ textarea:focus {
 .compact-card small {
   display: block;
   margin-top: 8px;
+}
+
+.cli-card {
+  overflow: hidden;
+}
+
+.cli-card .cli-pre {
+  margin-top: 14px;
+}
+
+.cli-note-list {
+  display: grid;
+  gap: 8px;
 }
 
 .insight-meta {

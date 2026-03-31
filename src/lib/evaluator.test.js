@@ -21,6 +21,7 @@ describe('evaluateSurvey', () => {
       externalAccessControl: 'ip-whitelist',
       identityModel: 'hybrid',
       secretAccess: 'hybrid',
+      serviceIamControls: ['system-assigned-mi', 'user-assigned-mi', 'least-privilege-rbac'],
       governanceControls: ['azure-devops', 'arm-rbac', 'mfa'],
       generatorAccess: 'key-and-url',
       aiCapability: ['gen-ai', 'ocr'],
@@ -41,10 +42,15 @@ describe('evaluateSurvey', () => {
     expect(roleNames).toContain('Key Vault Secrets User');
     expect(roleNames).toContain('Azure DevOps Project Administrators');
     expect(roleNames).toContain('Conditional Access Administrator');
+    expect(roleNames).toContain('Managed Identity Operator');
     expect(result.databasePlan?.sku).toBe('S2');
     expect(result.databasePlan?.performanceModel).toBe('Azure SQL vCore 模型');
     expect(result.databasePlan?.backupPolicy).toBe('異地備份 / Geo-Redundant');
     expect(result.appServiceConfig.plan).toBe('P1v3');
+    expect(result.serviceIamProfile.labels).toContain('啟用 System-assigned Managed Identity');
+    expect(result.azureCliPlan.commandGroups.some((group) => group.title === 'Azure App Service')).toBe(true);
+    expect(result.azureCliPlan.commandGroups.some((group) => group.title === '服務 IAM 控制')).toBe(true);
+    expect(result.azureCliPlan.commandGroups.some((group) => group.title === 'Azure RBAC 指派')).toBe(true);
     expect(result.costEstimate.high).toBeGreaterThan(result.costEstimate.low);
     expect(result.applicationStatus).toBe('待安全審核');
   });
@@ -68,6 +74,7 @@ describe('evaluateSurvey', () => {
       externalAccessControl: 'private-only',
       identityModel: 'entra-id',
       secretAccess: 'runtime-read',
+      serviceIamControls: ['system-assigned-mi'],
       governanceControls: ['mfa'],
       generatorAccess: 'url-only',
       aiCapability: ['none'],
@@ -96,6 +103,9 @@ describe('evaluateSurvey', () => {
     expect(markdown).toContain('效能模型：PostgreSQL vCore 模型');
     expect(markdown).toContain('備份策略：Point-in-Time Restore');
     expect(markdown).toContain('申請狀態');
+    expect(markdown).toContain('服務 IAM 控制');
+    expect(markdown).toContain('Azure CLI 建置指令');
+    expect(markdown).toContain('az group create --name "$RG_NAME" --location "$LOCATION"');
     expect(markdown).toContain('安全控制');
     expect(markdown).toContain('技術參考');
     expect(result.referenceLinks.length).toBeGreaterThan(0);
@@ -126,6 +136,7 @@ describe('evaluateSurvey', () => {
       apiManagementNeed: 'hybrid-api',
       identityModel: 'b2b',
       secretAccess: 'hybrid',
+      serviceIamControls: ['system-assigned-mi', 'privileged-approval'],
       governanceControls: ['azure-devops', 'arm-rbac', 'mfa'],
       generatorAccess: 'key-and-url',
       aiCapability: ['agent'],
@@ -150,6 +161,8 @@ describe('evaluateSurvey', () => {
     expect(result.functionConfig.enabled).toBe(true);
     expect(result.functionConfig.plan).toBe('Premium');
     expect(result.autoscaleProfile.mode).toBe('依事件量自動擴展（Serverless）');
+    expect(result.azureCliPlan.commandGroups.some((group) => group.title === 'Azure Functions')).toBe(true);
+    expect(result.azureCliPlan.commandGroups.some((group) => group.title === 'Azure Messaging Services')).toBe(true);
     expect(result.costEstimate.high).toBeGreaterThan(result.costEstimate.low);
   });
 });

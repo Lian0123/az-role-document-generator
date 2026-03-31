@@ -40,6 +40,7 @@ const scoreWeight = {
   externalAccessControl: 2,
   identityModel: 2,
   secretAccess: 2,
+  serviceIamControls: 2,
   governanceControls: 3,
   generatorAccess: 2,
   aiCapability: 3,
@@ -186,6 +187,78 @@ const autoscaleLabelMap = {
   'not-applicable': '不適用 / 尚未決定'
 };
 
+const serviceIamControlCatalog = {
+  'system-assigned-mi': {
+    label: '啟用 System-assigned Managed Identity',
+    guidance: '執行階段服務以受控身分直接存取 Key Vault、Storage、Service Bus 等 Azure 資源。'
+  },
+  'user-assigned-mi': {
+    label: '使用 User-assigned Managed Identity',
+    guidance: '跨多個服務共用單一服務身分，需限制 RBAC scope 並管理身分生命週期。'
+  },
+  'least-privilege-rbac': {
+    label: '自動化帳號採最小權限 RBAC',
+    guidance: '服務主體或自動化帳號僅可在必要 scope 執行限定操作，避免長期高權限。'
+  },
+  'privileged-approval': {
+    label: '高權限角色需審批與限時授權',
+    guidance: '正式環境高權限變更應納入審批、限時授權與稽核流程。'
+  }
+};
+
+const azureLocationMap = {
+  'east-asia': 'eastasia',
+  taiwan: 'taiwannorth',
+  'southeast-asia': 'southeastasia',
+  'north-america': 'eastus',
+  'west-europe': 'westeurope',
+  'japan-east': 'japaneast',
+  'japan-west': 'japanwest',
+  'australia-east': 'australiaeast'
+};
+
+const appServiceRuntimeCliMap = {
+  dotnet: 'DOTNETCORE:8.0',
+  node: 'NODE:20-lts',
+  python: 'PYTHON:3.11',
+  java: 'JAVA:17-java17',
+  php: 'PHP:8.2',
+  'static-web': 'NODE:20-lts'
+};
+
+const functionRuntimeCliMap = {
+  'dotnet-isolated': 'dotnet-isolated',
+  node: 'node',
+  python: 'python',
+  powershell: 'powershell'
+};
+
+const isAzureRbacRole = (roleName) => !['db_datareader', 'db_datawriter', 'db_ddladmin', 'db_owner', 'Azure DevOps Project Administrators', 'Azure DevOps Readers'].includes(roleName);
+
+const normalizeAsciiName = (value, fallback) => {
+  const normalized = (value ?? '')
+    .normalize('NFKD')
+    .replace(/[^\x00-\x7F]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .replace(/-{2,}/g, '-')
+    .slice(0, 24);
+
+  return normalized || fallback;
+};
+
+const normalizeAccountCode = (value, fallback) => {
+  const normalized = (value ?? '')
+    .normalize('NFKD')
+    .replace(/[^\x00-\x7F]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '')
+    .slice(0, 16);
+
+  return normalized || fallback;
+};
+
 const resolveDatabasePlan = (answers) => {
   const tier = databaseTierCatalog[answers.databaseTier];
 
@@ -247,6 +320,17 @@ const resolveGeneratorProfile = (answers) => ({
   mode: generatorLabelMap[answers.generatorAccess] ?? '未指定',
   endpointDelivery: answers.generatorAccess === 'key-only' ? '由平台持有 URL，僅交付 Key' : answers.generatorAccess === 'url-only' ? '僅交付 URL' : answers.generatorAccess === 'key-and-url' ? '交付 Key 與 URL，需經 Key Vault 管理' : '不適用'
 });
+
+const resolveServiceIamProfile = (answers) => {
+  const selections = Array.isArray(answers.serviceIamControls)
+    ? answers.serviceIamControls.filter((item) => item !== 'none')
+    : [];
+
+  return {
+    labels: selections.map((item) => serviceIamControlCatalog[item]?.label).filter(Boolean),
+    guidance: selections.map((item) => serviceIamControlCatalog[item]?.guidance).filter(Boolean)
+  };
+};
 
 const resolveReferenceLinks = (answers) => {
   const selectedQuestions = questionnaire.filter((question) => {
@@ -450,6 +534,22 @@ const deriveSecurityControls = (answers) => {
     controls.push('應用程式應以 Managed Identity 或受控身分讀取機密，避免硬編碼帳密。');
   }
 
+  if (Array.isArray(answers.serviceIamControls) && answers.serviceIamControls.includes('system-assigned-mi')) {
+    controls.push('執行階段服務應啟用 System-assigned Managed Identity，避免以連線字串或長期密碼存取 Azure 資源。');
+  }
+
+  if (Array.isArray(answers.serviceIamControls) && answers.serviceIamControls.includes('user-assigned-mi')) {
+    controls.push('若多服務共用身分，應建立 User-assigned Managed Identity，並以最小 scope 指派 RBAC。');
+  }
+
+  if (Array.isArray(answers.serviceIamControls) && answers.serviceIamControls.includes('least-privilege-rbac')) {
+    controls.push('服務主體與自動化帳號應以最小權限 RBAC 授權，避免直接賦予 Subscription 層級高權限角色。');
+  }
+
+  if (Array.isArray(answers.serviceIamControls) && answers.serviceIamControls.includes('privileged-approval')) {
+    controls.push('高權限角色應採限時授權、審批流程與操作稽核，避免常態性持有管理權。');
+  }
+
   if (Array.isArray(answers.aiCapability) && answers.aiCapability.some((item) => item !== 'none')) {
     controls.push('AI 服務應啟用內容安全、模型存取審核與知識庫來源管控。');
   }
@@ -588,6 +688,454 @@ const buildServiceAccessMatrix = (services, permissions, answers, databasePlan) 
   });
 };
 
+const buildRoleAssignmentScope = (permission, serviceIds) => {
+  switch (permission.id) {
+    case 'appServiceContributor':
+      return '/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RG_NAME/providers/Microsoft.Web/sites/$WEBAPP_NAME';
+    case 'functionAppContributor':
+      return '/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RG_NAME/providers/Microsoft.Web/sites/$FUNCTION_APP_NAME';
+    case 'apiManagementServiceContributor':
+      return '/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RG_NAME/providers/Microsoft.ApiManagement/service/$APIM_NAME';
+    case 'planContributor':
+      return '/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RG_NAME/providers/Microsoft.Web/serverfarms/$APP_PLAN_NAME';
+    case 'sqlContributor':
+      return '/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RG_NAME/providers/Microsoft.Sql/servers/$SQL_SERVER_NAME';
+    case 'postgresContributor':
+      return '/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RG_NAME/providers/Microsoft.DBforPostgreSQL/flexibleServers/$POSTGRES_SERVER_NAME';
+    case 'cosmosDbOperator':
+    case 'cosmosDbDataContributor':
+      return '/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RG_NAME/providers/Microsoft.DocumentDB/databaseAccounts/$COSMOS_ACCOUNT_NAME';
+    case 'storageBlobDataReader':
+    case 'storageBlobDataContributor':
+      return '/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RG_NAME/providers/Microsoft.Storage/storageAccounts/$STORAGE_NAME';
+    case 'keyVaultSecretsOfficer':
+    case 'keyVaultSecretsUser':
+      return '/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RG_NAME/providers/Microsoft.KeyVault/vaults/$KEYVAULT_NAME';
+    case 'managedIdentityOperator':
+      return '/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RG_NAME/providers/Microsoft.ManagedIdentity/userAssignedIdentities/$UAMI_NAME';
+    case 'networkContributor':
+      return serviceIds.has('vnet')
+        ? '/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RG_NAME/providers/Microsoft.Network/virtualNetworks/$VNET_NAME'
+        : '/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RG_NAME';
+    case 'monitoringContributor':
+    case 'reader':
+    case 'securityReader':
+    case 'armContributor':
+    case 'userAccessAdministrator':
+      return '/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RG_NAME';
+    case 'cognitiveServicesUser':
+    case 'cognitiveServicesContributor':
+      return serviceIds.has('openAi')
+        ? '/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RG_NAME/providers/Microsoft.CognitiveServices/accounts/$OPENAI_NAME'
+        : '/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RG_NAME/providers/Microsoft.CognitiveServices/accounts/$AISVC_NAME';
+    case 'serviceBusDataSender':
+    case 'serviceBusDataReceiver':
+    case 'serviceBusDataOwner':
+      return '/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RG_NAME/providers/Microsoft.ServiceBus/namespaces/$SERVICEBUS_NAMESPACE';
+    case 'redisContributor':
+      return '/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RG_NAME/providers/Microsoft.Cache/Redis/$REDIS_NAME';
+    case 'containerRegistryReader':
+      return '/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RG_NAME/providers/Microsoft.ContainerRegistry/registries/$ACR_NAME';
+    default:
+      return '/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RG_NAME';
+  }
+};
+
+const buildAzureCliPlan = (answers, projectProfile, services, permissions, databasePlan, serviceIamProfile) => {
+  const serviceIds = new Set(services.map((service) => service.id));
+  const projectSlug = normalizeAsciiName(projectProfile.projectName, 'azure-intake');
+  const projectCode = normalizeAccountCode(projectProfile.projectName, 'azintake');
+  const location = azureLocationMap[answers.region] ?? 'eastasia';
+  const appRuntime = appServiceRuntimeCliMap[answers.appServiceRuntime] ?? 'NODE:20-lts';
+  const functionRuntime = functionRuntimeCliMap[answers.functionRuntime] ?? 'node';
+  const commandGroups = [
+    {
+      title: '初始化與共用變數',
+      commands: [
+        'az login',
+        'az account set --subscription "$SUBSCRIPTION_ID"',
+        `PROJECT_SLUG="${projectSlug}"`,
+        `PROJECT_CODE="${projectCode}"`,
+        'UNIQUE_SUFFIX="001"',
+        `LOCATION="${location}"`,
+        'RG_NAME="${PROJECT_SLUG}-rg"',
+        'APP_PLAN_NAME="${PROJECT_SLUG}-plan"',
+        'WEBAPP_NAME="${PROJECT_SLUG}-web-${UNIQUE_SUFFIX}"',
+        'FUNCTION_PLAN_NAME="${PROJECT_SLUG}-func-plan"',
+        'FUNCTION_APP_NAME="${PROJECT_SLUG}-func-${UNIQUE_SUFFIX}"',
+        'FUNCTION_STORAGE_NAME="${PROJECT_CODE}func${UNIQUE_SUFFIX}"',
+        'STORAGE_NAME="${PROJECT_CODE}st${UNIQUE_SUFFIX}"',
+        'KEYVAULT_NAME="${PROJECT_SLUG}-kv-${UNIQUE_SUFFIX}"',
+        'SQL_SERVER_NAME="${PROJECT_SLUG}-sql-${UNIQUE_SUFFIX}"',
+        'SQL_DATABASE_NAME="${PROJECT_SLUG}-db"',
+        'POSTGRES_SERVER_NAME="${PROJECT_SLUG}-psql-${UNIQUE_SUFFIX}"',
+        'COSMOS_ACCOUNT_NAME="${PROJECT_SLUG}-mongo-${UNIQUE_SUFFIX}"',
+        'SERVICEBUS_NAMESPACE="${PROJECT_SLUG}-sb-${UNIQUE_SUFFIX}"',
+        'REDIS_NAME="${PROJECT_SLUG}-redis-${UNIQUE_SUFFIX}"',
+        'APIM_NAME="${PROJECT_SLUG}-apim-${UNIQUE_SUFFIX}"',
+        'LAW_NAME="${PROJECT_SLUG}-law"',
+        'APPINSIGHTS_NAME="${PROJECT_SLUG}-appi"',
+        'OPENAI_NAME="${PROJECT_SLUG}-openai-${UNIQUE_SUFFIX}"',
+        'SEARCH_NAME="${PROJECT_CODE}srch${UNIQUE_SUFFIX}"',
+        'AISVC_NAME="${PROJECT_SLUG}-ai-${UNIQUE_SUFFIX}"',
+        'VNET_NAME="${PROJECT_SLUG}-vnet"',
+        'APP_SUBNET_NAME="app-subnet"',
+        'PE_SUBNET_NAME="private-endpoint-subnet"',
+        'APPGW_NAME="${PROJECT_SLUG}-agw"',
+        'APPGW_PUBLIC_IP="${PROJECT_SLUG}-agw-pip"',
+        'FRONTDOOR_NAME="${PROJECT_SLUG}-fd"',
+        'FRONTDOOR_ENDPOINT_NAME="${PROJECT_SLUG}-edge"',
+        'BACKUP_VAULT_NAME="${PROJECT_SLUG}-rsv"',
+        'ACR_NAME="${PROJECT_CODE}acr${UNIQUE_SUFFIX}"',
+        'UAMI_NAME="${PROJECT_SLUG}-uami"',
+        'ASSIGNEE_OBJECT_ID="<service-principal-or-managed-identity-object-id>"',
+        'SQL_ADMIN_USER="<sql-admin-user>"',
+        'SQL_ADMIN_PASSWORD="<sql-admin-password>"',
+        'POSTGRES_ADMIN_USER="<postgres-admin-user>"',
+        'POSTGRES_ADMIN_PASSWORD="<postgres-admin-password>"',
+        'PUBLISHER_EMAIL="<apim-owner@example.com>"',
+        'PUBLISHER_NAME="<platform-owner>"',
+        'az group create --name "$RG_NAME" --location "$LOCATION"'
+      ],
+      notes: [
+        '請先替換訂閱 ID、管理者帳號、全域唯一名稱與密碼類變數。',
+        'Storage、Search、ACR 與部分服務名稱需全域唯一，建議調整 UNIQUE_SUFFIX。'
+      ]
+    }
+  ];
+
+  if (serviceIds.has('vnet') || serviceIds.has('privateEndpoint') || serviceIds.has('waf')) {
+    commandGroups.push({
+      title: '網路基礎資源',
+      commands: [
+        'az network vnet create --resource-group "$RG_NAME" --name "$VNET_NAME" --location "$LOCATION" --address-prefixes 10.20.0.0/16 --subnet-name "$APP_SUBNET_NAME" --subnet-prefixes 10.20.1.0/24',
+        'az network vnet subnet create --resource-group "$RG_NAME" --vnet-name "$VNET_NAME" --name "$PE_SUBNET_NAME" --address-prefixes 10.20.2.0/24 --disable-private-endpoint-network-policies true'
+      ]
+    });
+  }
+
+  if (serviceIds.has('appService')) {
+    const commands = answers.appServiceRuntime === 'container'
+      ? [
+          'az appservice plan create --resource-group "$RG_NAME" --name "$APP_PLAN_NAME" --location "$LOCATION" --sku "' + (databasePlan ? answers.appServicePlan?.toUpperCase?.() ?? 'S1' : answers.appServicePlan?.toUpperCase?.() ?? 'S1') + '" --is-linux',
+          'az webapp create --resource-group "$RG_NAME" --plan "$APP_PLAN_NAME" --name "$WEBAPP_NAME" --deployment-container-image-name "$ACR_LOGIN_SERVER/<image>:<tag>"'
+        ]
+      : [
+          'az appservice plan create --resource-group "$RG_NAME" --name "$APP_PLAN_NAME" --location "$LOCATION" --sku "' + (planLabelMap[answers.appServicePlan] ?? 'S1') + '" --is-linux',
+          `az webapp create --resource-group "$RG_NAME" --plan "$APP_PLAN_NAME" --name "$WEBAPP_NAME" --runtime "${appRuntime}"`
+        ];
+
+    if (answers.externalAccessControl === 'ip-whitelist') {
+      commands.push('az webapp config access-restriction add --resource-group "$RG_NAME" --name "$WEBAPP_NAME" --rule-name "corp-allow" --priority 100 --action Allow --ip-address "<allowed-cidr>"');
+    }
+
+    commandGroups.push({
+      title: 'Azure App Service',
+      commands
+    });
+  }
+
+  if (serviceIds.has('functionApp')) {
+    const commands = [
+      'az storage account create --resource-group "$RG_NAME" --name "$FUNCTION_STORAGE_NAME" --location "$LOCATION" --sku Standard_LRS --kind StorageV2'
+    ];
+
+    if (answers.functionPlan === 'premium' || answers.functionPlan === 'dedicated') {
+      commands.push('az functionapp plan create --resource-group "$RG_NAME" --name "$FUNCTION_PLAN_NAME" --location "$LOCATION" --sku "' + (answers.functionPlan === 'premium' ? 'EP1' : planLabelMap[answers.appServicePlan] ?? 'S1') + '" --is-linux');
+      commands.push(`az functionapp create --resource-group "$RG_NAME" --name "$FUNCTION_APP_NAME" --storage-account "$FUNCTION_STORAGE_NAME" --plan "$FUNCTION_PLAN_NAME" --runtime "${functionRuntime}" --functions-version 4`);
+    } else {
+      commands.push(`az functionapp create --resource-group "$RG_NAME" --name "$FUNCTION_APP_NAME" --storage-account "$FUNCTION_STORAGE_NAME" --consumption-plan-location "$LOCATION" --runtime "${functionRuntime}" --functions-version 4`);
+    }
+
+    commandGroups.push({
+      title: 'Azure Functions',
+      commands
+    });
+  }
+
+  if (serviceIds.has('apiManagement')) {
+    commandGroups.push({
+      title: 'Azure API Management',
+      commands: [
+        'az apim create --resource-group "$RG_NAME" --name "$APIM_NAME" --location "$LOCATION" --publisher-email "$PUBLISHER_EMAIL" --publisher-name "$PUBLISHER_NAME" --sku-name "' + (answers.apiManagementNeed === 'hybrid-api' ? 'StandardV2' : 'Developer') + '"'
+      ]
+    });
+  }
+
+  if (serviceIds.has('storage')) {
+    commandGroups.push({
+      title: 'Azure Storage Account',
+      commands: [
+        'az storage account create --resource-group "$RG_NAME" --name "$STORAGE_NAME" --location "$LOCATION" --sku "' + (answers.dataSensitivity === 'restricted' ? 'Standard_ZRS' : 'Standard_LRS') + '" --kind StorageV2'
+      ]
+    });
+  }
+
+  if (serviceIds.has('keyVault')) {
+    commandGroups.push({
+      title: 'Azure Key Vault',
+      commands: [
+        'az keyvault create --resource-group "$RG_NAME" --name "$KEYVAULT_NAME" --location "$LOCATION" --enable-rbac-authorization true'
+      ]
+    });
+  }
+
+  if (serviceIds.has('sqlDatabase')) {
+    commandGroups.push({
+      title: 'Azure SQL Database',
+      commands: [
+        'az sql server create --resource-group "$RG_NAME" --name "$SQL_SERVER_NAME" --location "$LOCATION" --admin-user "$SQL_ADMIN_USER" --admin-password "$SQL_ADMIN_PASSWORD"',
+        'az sql db create --resource-group "$RG_NAME" --server "$SQL_SERVER_NAME" --name "$SQL_DATABASE_NAME" --service-objective "' + (databasePlan?.sku ?? 'S1') + '"'
+      ],
+      notes: ['SQL 內部資料庫角色如 db_datareader、db_datawriter、db_owner 需再以 T-SQL 或部署腳本建立，不屬於 Azure RBAC。']
+    });
+  }
+
+  if (serviceIds.has('postgresql')) {
+    const postgresTier = databasePlan?.sku === 'B1ms' ? 'Burstable' : databasePlan?.sku === 'MO_E2s_v3' ? 'MemoryOptimized' : 'GeneralPurpose';
+
+    commandGroups.push({
+      title: 'Azure Database for PostgreSQL',
+      commands: [
+        'az postgres flexible-server create --resource-group "$RG_NAME" --name "$POSTGRES_SERVER_NAME" --location "$LOCATION" --admin-user "$POSTGRES_ADMIN_USER" --admin-password "$POSTGRES_ADMIN_PASSWORD" --sku-name "' + (databasePlan?.sku ?? 'GP_Standard_D2s_v3') + '" --tier "' + postgresTier + '"'
+      ]
+    });
+  }
+
+  if (serviceIds.has('cosmosMongo')) {
+    commandGroups.push({
+      title: 'Azure Cosmos DB for MongoDB',
+      commands: [
+        'az cosmosdb create --resource-group "$RG_NAME" --name "$COSMOS_ACCOUNT_NAME" --kind MongoDB --locations regionName="$LOCATION" failoverPriority=0 --default-consistency-level Session'
+      ],
+      notes: [
+        '若選用 MongoDB vCore 叢集，請改用對應 az extension 或 Bicep 模板建立 M30 / M50 叢集規格。',
+        'MongoDB 資料庫與集合可再用 az cosmosdb mongodb database create 與 az cosmosdb mongodb collection create 補齊。'
+      ]
+    });
+  }
+
+  if (serviceIds.has('messaging')) {
+    const commands = [
+      'az servicebus namespace create --resource-group "$RG_NAME" --name "$SERVICEBUS_NAMESPACE" --location "$LOCATION" --sku Standard'
+    ];
+
+    if (answers.messagingService === 'service-bus-queue' || answers.messagingService === 'hybrid-messaging') {
+      commands.push('az servicebus queue create --resource-group "$RG_NAME" --namespace-name "$SERVICEBUS_NAMESPACE" --name "work-queue"');
+    }
+
+    if (answers.messagingService === 'service-bus-topic' || answers.messagingService === 'hybrid-messaging') {
+      commands.push('az servicebus topic create --resource-group "$RG_NAME" --namespace-name "$SERVICEBUS_NAMESPACE" --name "event-topic"');
+      commands.push('az servicebus topic subscription create --resource-group "$RG_NAME" --namespace-name "$SERVICEBUS_NAMESPACE" --topic-name "event-topic" --name "default-subscription"');
+    }
+
+    commandGroups.push({
+      title: 'Azure Messaging Services',
+      commands
+    });
+  }
+
+  if (serviceIds.has('redis')) {
+    const redisSku = answers.cacheService === 'redis-premium' ? 'Premium' : answers.cacheService === 'redis-standard' ? 'Standard' : 'Basic';
+    const redisVm = answers.cacheService === 'redis-premium' ? 'P1' : answers.cacheService === 'redis-standard' ? 'C1' : 'C0';
+
+    commandGroups.push({
+      title: 'Azure Cache for Redis',
+      commands: [
+        'az redis create --resource-group "$RG_NAME" --name "$REDIS_NAME" --location "$LOCATION" --sku "' + redisSku + '" --vm-size "' + redisVm + '"'
+      ]
+    });
+  }
+
+  if (serviceIds.has('logAnalytics')) {
+    commandGroups.push({
+      title: 'Log Analytics Workspace',
+      commands: [
+        'az monitor log-analytics workspace create --resource-group "$RG_NAME" --workspace-name "$LAW_NAME" --location "$LOCATION"'
+      ]
+    });
+  }
+
+  if (serviceIds.has('appInsights')) {
+    commandGroups.push({
+      title: 'Application Insights',
+      commands: [
+        'LAW_ID=$(az monitor log-analytics workspace show --resource-group "$RG_NAME" --workspace-name "$LAW_NAME" --query id --output tsv)',
+        'az monitor app-insights component create --app "$APPINSIGHTS_NAME" --location "$LOCATION" --resource-group "$RG_NAME" --workspace "$LAW_ID" --application-type web'
+      ]
+    });
+  }
+
+  if (serviceIds.has('openAi')) {
+    commandGroups.push({
+      title: 'Azure OpenAI Service',
+      commands: [
+        'az cognitiveservices account create --resource-group "$RG_NAME" --name "$OPENAI_NAME" --location "$LOCATION" --kind OpenAI --sku S0 --yes'
+      ],
+      notes: ['模型部署可再以 az cognitiveservices account deployment create 或 IaC 模板建立。']
+    });
+  }
+
+  if (serviceIds.has('aiSearch')) {
+    commandGroups.push({
+      title: 'Azure AI Search',
+      commands: [
+        'az search service create --resource-group "$RG_NAME" --name "$SEARCH_NAME" --location "$LOCATION" --sku "' + (answers.scaleExpectation === 'mission-critical' ? 'standard2' : 'basic') + '"'
+      ]
+    });
+  }
+
+  if (serviceIds.has('aiServices')) {
+    commandGroups.push({
+      title: 'Azure AI Services',
+      commands: [
+        'az cognitiveservices account create --resource-group "$RG_NAME" --name "$AISVC_NAME" --location "$LOCATION" --kind CognitiveServices --sku S0 --yes'
+      ]
+    });
+  }
+
+  if (serviceIds.has('privateEndpoint')) {
+    commandGroups.push({
+      title: 'Private Endpoint',
+      commands: [
+        'az network private-endpoint create --resource-group "$RG_NAME" --name "${PROJECT_SLUG}-pe" --vnet-name "$VNET_NAME" --subnet "$PE_SUBNET_NAME" --private-connection-resource-id "<target-resource-id>" --group-id "<subresource-name>" --connection-name "${PROJECT_SLUG}-pe-conn"'
+      ],
+      notes: ['請將 <target-resource-id> 與 <subresource-name> 替換為實際 PaaS 服務與子資源，例如 sqlServer、vault 或 blob。']
+    });
+  }
+
+  if (serviceIds.has('waf')) {
+    commandGroups.push({
+      title: 'Application Gateway WAF',
+      commands: [
+        'az network public-ip create --resource-group "$RG_NAME" --name "$APPGW_PUBLIC_IP" --location "$LOCATION" --sku Standard',
+        'az network application-gateway create --resource-group "$RG_NAME" --name "$APPGW_NAME" --location "$LOCATION" --sku WAF_v2 --capacity 2 --public-ip-address "$APPGW_PUBLIC_IP" --vnet-name "$VNET_NAME" --subnet "$APP_SUBNET_NAME"'
+      ]
+    });
+  }
+
+  if (serviceIds.has('frontDoor')) {
+    commandGroups.push({
+      title: 'Azure Front Door',
+      commands: [
+        'az afd profile create --resource-group "$RG_NAME" --profile-name "$FRONTDOOR_NAME" --sku Standard_AzureFrontDoor',
+        'az afd endpoint create --resource-group "$RG_NAME" --profile-name "$FRONTDOOR_NAME" --endpoint-name "$FRONTDOOR_ENDPOINT_NAME" --enabled-state Enabled'
+      ]
+    });
+  }
+
+  if (serviceIds.has('backup')) {
+    commandGroups.push({
+      title: 'Azure Backup',
+      commands: [
+        'az backup vault create --resource-group "$RG_NAME" --name "$BACKUP_VAULT_NAME" --location "$LOCATION"'
+      ],
+      notes: ['後續請再依資料來源類型建立 Backup Policy 與保護項目。']
+    });
+  }
+
+  if (serviceIds.has('containerRegistry')) {
+    commandGroups.push({
+      title: 'Azure Container Registry',
+      commands: [
+        'az acr create --resource-group "$RG_NAME" --name "$ACR_NAME" --location "$LOCATION" --sku Standard'
+      ]
+    });
+  }
+
+  if (serviceIds.has('autoscale') && answers.autoscaleMode !== 'serverless-burst' && answers.autoscaleMode !== 'not-applicable') {
+    commandGroups.push({
+      title: 'Azure Monitor Autoscale',
+      commands: [
+        'az monitor autoscale create --resource-group "$RG_NAME" --resource "$APP_PLAN_NAME" --resource-type Microsoft.Web/serverfarms --name "${PROJECT_SLUG}-autoscale" --min-count 1 --max-count 3 --count 1',
+        'az monitor autoscale rule create --resource-group "$RG_NAME" --autoscale-name "${PROJECT_SLUG}-autoscale" --condition "Percentage CPU > 70 avg 10m" --scale out 1',
+        'az monitor autoscale rule create --resource-group "$RG_NAME" --autoscale-name "${PROJECT_SLUG}-autoscale" --condition "Percentage CPU < 35 avg 10m" --scale in 1'
+      ]
+    });
+  }
+
+  if (serviceIamProfile.labels.length) {
+    const iamCommands = [];
+
+    if (answers.serviceIamControls.includes('system-assigned-mi')) {
+      if (serviceIds.has('appService')) {
+        iamCommands.push('az webapp identity assign --resource-group "$RG_NAME" --name "$WEBAPP_NAME"');
+      }
+
+      if (serviceIds.has('functionApp')) {
+        iamCommands.push('az functionapp identity assign --resource-group "$RG_NAME" --name "$FUNCTION_APP_NAME"');
+      }
+    }
+
+    if (answers.serviceIamControls.includes('user-assigned-mi')) {
+      iamCommands.push('az identity create --resource-group "$RG_NAME" --name "$UAMI_NAME" --location "$LOCATION"');
+
+      if (serviceIds.has('appService')) {
+        iamCommands.push('UAMI_ID=$(az identity show --resource-group "$RG_NAME" --name "$UAMI_NAME" --query id --output tsv)');
+        iamCommands.push('az webapp identity assign --resource-group "$RG_NAME" --name "$WEBAPP_NAME" --identities "$UAMI_ID"');
+      }
+
+      if (serviceIds.has('functionApp')) {
+        iamCommands.push('UAMI_ID=$(az identity show --resource-group "$RG_NAME" --name "$UAMI_NAME" --query id --output tsv)');
+        iamCommands.push('az functionapp identity assign --resource-group "$RG_NAME" --name "$FUNCTION_APP_NAME" --identities "$UAMI_ID"');
+      }
+    }
+
+    if (iamCommands.length) {
+      commandGroups.push({
+        title: '服務 IAM 控制',
+        commands: iamCommands,
+        notes: serviceIamProfile.guidance
+      });
+    }
+  }
+
+  const roleAssignmentCommands = permissions
+    .filter((permission) => isAzureRbacRole(permission.name))
+    .map((permission) => {
+      const scope = buildRoleAssignmentScope(permission, serviceIds);
+
+      return `az role assignment create --assignee-object-id "$ASSIGNEE_OBJECT_ID" --role "${permission.name}" --scope "${scope}"`;
+    });
+
+  if (roleAssignmentCommands.length) {
+    commandGroups.push({
+      title: 'Azure RBAC 指派',
+      commands: roleAssignmentCommands,
+      notes: ['ASSIGNEE_OBJECT_ID 可替換為使用者、群組、Service Principal 或 Managed Identity Object ID。']
+    });
+  }
+
+  const manualSteps = permissions
+    .filter((permission) => !isAzureRbacRole(permission.name))
+    .map((permission) => {
+      if (['db_datareader', 'db_datawriter', 'db_ddladmin', 'db_owner'].includes(permission.name)) {
+        return `${permission.name} 需在資料庫內以 T-SQL 或 migration 腳本建立，無法透過 az role assignment 直接完成。`;
+      }
+
+      if (permission.name.startsWith('Azure DevOps')) {
+        return `${permission.name} 屬於 Azure DevOps Project 權限，請改由 Azure DevOps Project Settings / Security 或 Terraform provider 設定。`;
+      }
+
+      return `${permission.name} 需依實際控制平面補充設定。`;
+    });
+
+  if (serviceIds.has('entraId') || serviceIds.has('mfa')) {
+    manualSteps.push('Microsoft Entra ID、MFA 與 Conditional Access 相關原則需改用 Entra 管理中心、Microsoft Graph 或對應 IaC 工具設定。');
+  }
+
+  if (serviceIds.has('azureDevOps')) {
+    manualSteps.push('Azure DevOps 專案、Repo、Pipeline 與 Service Connection 權限不屬於 Azure CLI 資源平面，請另以 Azure DevOps CLI 或平台治理流程配置。');
+  }
+
+  return {
+    location,
+    projectSlug,
+    commandGroups,
+    manualSteps
+  };
+};
+
 export const evaluateSurvey = (answers, projectProfile = {}) => {
   const mergedAnswers = { ...defaultAnswers, ...answers };
   const serviceScores = new Map();
@@ -663,12 +1211,14 @@ export const evaluateSurvey = (answers, projectProfile = {}) => {
   const functionConfig = resolveFunctionConfig(mergedAnswers);
   const autoscaleProfile = resolveAutoscaleProfile(mergedAnswers);
   const generatorProfile = resolveGeneratorProfile(mergedAnswers);
+  const serviceIamProfile = resolveServiceIamProfile(mergedAnswers);
   const securityControls = deriveSecurityControls(mergedAnswers);
   const serviceAccessMatrix = buildServiceAccessMatrix(services, permissions, mergedAnswers, databasePlan);
   const referenceLinks = resolveReferenceLinks(mergedAnswers);
   const costEstimate = calculateCostEstimate(mergedAnswers, services, databasePlan);
   const architecturePreview = buildArchitecturePreview(mergedAnswers, services, databasePlan);
   const regionLabel = regionLabelMap[mergedAnswers.region] ?? '未指定';
+  const azureCliPlan = buildAzureCliPlan(mergedAnswers, projectProfile, services, permissions, databasePlan, serviceIamProfile);
 
   const executiveSummary = [
     projectProfile.projectName ? `專案名稱：${projectProfile.projectName}` : null,
@@ -682,6 +1232,7 @@ export const evaluateSurvey = (answers, projectProfile = {}) => {
     databasePlan ? `資料庫方案：${databasePlan.label}` : null,
     `運算平台：${computePlatformLabelMap[mergedAnswers.computePlatform] ?? '未指定'}`,
     `Auto Scale：${autoscaleProfile.mode}`,
+    serviceIamProfile.labels.length ? `服務 IAM：${serviceIamProfile.labels.join('、')}` : null,
     `雲端位置：${regionLabel}`,
     `月費粗估：${costEstimate.currency} ${costEstimate.low}-${costEstimate.high} / 月`,
     `對外存取：${externalAccessLabelMap[mergedAnswers.externalAccessControl] ?? '未指定'}`
@@ -700,12 +1251,14 @@ export const evaluateSurvey = (answers, projectProfile = {}) => {
     functionConfig,
     autoscaleProfile,
     generatorProfile,
+    serviceIamProfile,
     regionLabel,
     serviceAccessMatrix,
     securityControls,
     referenceLinks,
     costEstimate,
     architecturePreview,
+    azureCliPlan,
     generatedAt: new Date().toLocaleString('zh-TW', { hour12: false })
   };
 };
@@ -756,6 +1309,10 @@ export const buildReportMarkdown = (projectProfile, result) => {
     )
   ];
 
+  const serviceIamLines = result.serviceIamProfile.labels.length
+    ? result.serviceIamProfile.labels.map((item, index) => `- ${item}：${result.serviceIamProfile.guidance[index]}`)
+    : ['- 未額外指定服務 IAM 控制策略'];
+
   const permissionLines = [
     `| 角色 | Scope | 需求強度 | 用途說明 |`,
     `| --- | --- | --- | --- |`,
@@ -763,6 +1320,17 @@ export const buildReportMarkdown = (projectProfile, result) => {
       (permission) => `| ${permission.name} | ${permission.scope} | ${permission.level} | ${permission.justification} |`
     )
   ];
+
+  const cliLines = result.azureCliPlan.commandGroups.flatMap((group) => [
+    `### ${group.title}`,
+    '```bash',
+    ...group.commands,
+    '```',
+    ...((group.notes ?? []).map((note) => `- ${note}`)),
+    ''
+  ]);
+
+  const manualCliLines = result.azureCliPlan.manualSteps.map((item) => `- ${item}`);
 
   const securityLines = result.securityControls.map((item) => `- ${item}`);
   const rationaleLines = result.rationale.map((item) => `- ${item.question} -> ${item.answer}`);
@@ -790,6 +1358,9 @@ export const buildReportMarkdown = (projectProfile, result) => {
     `| Generator 交付模式 | ${result.generatorProfile.mode} |`,
     `| Generator 補充說明 | ${result.generatorProfile.endpointDelivery} |`,
     '',
+    '## 服務 IAM 控制',
+    ...serviceIamLines,
+    '',
     '## 資料庫方案',
     ...databaseLines,
     '',
@@ -801,6 +1372,12 @@ export const buildReportMarkdown = (projectProfile, result) => {
     '',
     '## 全域角色權限',
     ...(permissionLines.length ? permissionLines : ['- 無']),
+    '',
+    '## Azure CLI 建置指令',
+    ...(cliLines.length ? cliLines : ['- 無']),
+    '',
+    '## Azure CLI 補充說明',
+    ...(manualCliLines.length ? manualCliLines : ['- 無']),
     '',
     '## 安全控制',
     ...(securityLines.length ? securityLines : ['- 無']),
