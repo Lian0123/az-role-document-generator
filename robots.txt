@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://lian0123.github.io/az-role-document-generator/sitemap.xml

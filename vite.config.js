@@ -41,7 +41,8 @@ export default defineConfig(({ command }) => ({
         globPatterns: ['**/*.{js,css,html,svg,png,webmanifest}'],
         cleanupOutdatedCaches: true,
         clientsClaim: true,
-        skipWaiting: true
+        skipWaiting: true,
+        navigateFallbackDenylist: [/^\/az-role-document-generator\/?$/]
       },
       devOptions: {
         enabled: true

@@ -5,8 +5,8 @@
   "type": "module",
   "homepage": "https://lian0123.github.io/az-role-document-generator/",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
+    "dev": "node scripts/use-source-index.mjs && vite",
+    "build": "node scripts/use-source-index.mjs && vite build && node scripts/sync-pages-root.mjs",
     "preview": "vite preview",
     "test": "vitest run"
   },

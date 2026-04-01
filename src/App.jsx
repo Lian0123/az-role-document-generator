@@ -972,7 +972,7 @@ function App() {
         </section>
 
         <aside className="panel result-panel">
-          <div className="section-heading sticky-heading">
+          <div className="section-heading">
             <div>
               <span className="eyebrow">Generated Report</span>
               <h2>{ui.reportTitle}</h2>
