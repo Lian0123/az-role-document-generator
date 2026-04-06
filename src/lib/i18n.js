@@ -37,6 +37,7 @@ const uiMessages = {
     launchDate: '預計上線日',
     publicResources: '對外開放資源說明',
     externalIps: '外部 IP 白名單',
+    appServiceDescription: 'App Service 工作負載補充說明',
     language: '語言',
     single: '單選',
     multi: '可複選',
@@ -81,6 +82,7 @@ const uiMessages = {
     draftOwner: '例如：陳經理',
     draftResources: '例如：公開入口網站、Partner API、管理後台',
     draftIps: '例如：203.0.113.10/32, 198.51.100.20/32',
+    draftAppServiceDescription: '例如：web 提供會員入口，server 提供內外部 API，admin 僅供內網審核作業使用',
     questionHint: '選擇最符合需求的項目，系統將即時計算 Azure 服務、角色權限與申請輸出。',
     projectSummary: '專案摘要',
     runtime: 'Runtime',
@@ -121,6 +123,7 @@ const uiMessages = {
     launchDate: 'Launch Date',
     publicResources: 'Public Resource Scope',
     externalIps: 'External IP Allowlist',
+    appServiceDescription: 'App Service workload notes',
     language: 'Language',
     single: 'Single choice',
     multi: 'Multiple choice',
@@ -165,6 +168,7 @@ const uiMessages = {
     draftOwner: 'Example: Project Manager Chen',
     draftResources: 'Example: public portal, partner API, admin console',
     draftIps: 'Example: 203.0.113.10/32, 198.51.100.20/32',
+    draftAppServiceDescription: 'Example: web serves customer portal, server exposes APIs, admin is internal only',
     questionHint: 'Choose the options that best fit the project. The platform evaluates Azure services, roles, and request outputs immediately.',
     projectSummary: 'Project Summary',
     runtime: 'Runtime',
@@ -205,6 +209,7 @@ const uiMessages = {
     launchDate: '公開予定日',
     publicResources: '公開対象リソース',
     externalIps: '外部 IP 許可リスト',
+    appServiceDescription: 'App Service ワークロード補足',
     language: '言語',
     single: '単一選択',
     multi: '複数選択',
@@ -249,6 +254,7 @@ const uiMessages = {
     draftOwner: '例: 陳マネージャー',
     draftResources: '例: 公開ポータル、Partner API、管理画面',
     draftIps: '例: 203.0.113.10/32, 198.51.100.20/32',
+    draftAppServiceDescription: '例: web は顧客ポータル、server は API、admin は社内審査向け',
     questionHint: '要件に最も近い項目を選択してください。Azure サービス、ロール、申請出力を即時評価します。',
     projectSummary: 'プロジェクト概要',
     runtime: 'Runtime',
@@ -275,13 +281,14 @@ const questionTranslations = {
   region: { en: 'Which cloud region is preferred?', ja: '主なクラウドリージョンはどこですか。' },
   billingPriority: { en: 'What is the billing strategy preference?', ja: 'コスト戦略の優先度は何ですか。' },
   dataSensitivity: { en: 'What is the data sensitivity level?', ja: 'データの機密度はどれですか。' },
-  databaseNeed: { en: 'Which type of database is needed?', ja: 'どの種類のデータベースが必要ですか。' },
-  databaseTier: { en: 'Which database tier is expected?', ja: '想定するデータベース層はどれですか。' },
-  databasePerformance: { en: 'What database performance model is needed?', ja: '必要なデータベース性能モデルは何ですか。' },
+  databaseNeed: { en: 'Which database types are needed?', ja: 'どのデータベース種別が必要ですか。' },
+  databaseTier: { en: 'Which database tiers are expected? You may choose one per engine.', ja: '想定するデータベース層はどれですか。エンジンごとに 1 つ選べます。' },
+  databasePerformance: { en: 'Which database performance models are needed? You may choose one per engine.', ja: '必要なデータベース性能モデルは何ですか。エンジンごとに 1 つ選べます。' },
   databaseBackup: { en: 'What backup and restore strategy is required?', ja: '必要なバックアップ・復元方針は何ですか。' },
   queryStoreAccess: { en: 'Does MSSQL Query Store need to be viewed or managed?', ja: 'MSSQL Query Store の参照または管理が必要ですか。' },
   blobUsage: { en: 'What is Blob Storage used for?', ja: 'Blob Storage の用途は何ですか。' },
   computePlatform: { en: 'What is the primary compute platform?', ja: '主要な実行基盤は何ですか。' },
+  appServiceWorkloads: { en: 'Which workloads should App Service host?', ja: 'App Service でどのワークロードを稼働させますか。' },
   appServicePlan: { en: 'Which App Service Plan is expected?', ja: '想定する App Service Plan はどれですか。' },
   appServiceRuntime: { en: 'What App Service runtime is required?', ja: '必要な App Service Runtime は何ですか。' },
   functionPlan: { en: 'Which Azure Functions hosting plan is needed?', ja: '必要な Azure Functions Hosting Plan はどれですか。' },
@@ -338,8 +345,7 @@ const optionTranslations = {
     sql: { en: 'Relational transaction database (Azure SQL)', ja: 'リレーショナル DB (Azure SQL)' },
     postgres: { en: 'Open-source database (PostgreSQL)', ja: 'オープンソース DB (PostgreSQL)' },
     mongo: { en: 'Document database (MongoDB)', ja: 'ドキュメント DB (MongoDB)' },
-    none: { en: 'No structured database needed now', ja: '現時点では構造化 DB 不要' },
-    'hybrid-db': { en: 'SQL, NoSQL, and unstructured storage together', ja: 'SQL・NoSQL・非構造化ストレージを併用' }
+    none: { en: 'No database needed now', ja: '現時点ではデータベース不要' }
   },
   databaseTier: {
     'sql-s0': { en: 'Azure SQL S0', ja: 'Azure SQL S0' },
@@ -390,6 +396,14 @@ const optionTranslations = {
     'function-app': { en: 'Use Azure Functions as primary compute', ja: 'Azure Functions を主要基盤にする' },
     mixed: { en: 'Use both App Service and Azure Functions', ja: 'App Service と Azure Functions を併用する' },
     undecided: { en: 'Undecided / let the platform recommend', ja: '未定 / プラットフォーム推奨に任せる' }
+  },
+  appServiceWorkloads: {
+    web: { en: 'Web frontend site', ja: 'Web フロントサイト' },
+    server: { en: 'Server / API backend', ja: 'Server / API バックエンド' },
+    admin: { en: 'Admin console', ja: '管理コンソール' },
+    'internal-api': { en: 'Internal API', ja: '内部 API' },
+    jobs: { en: 'WebJob / batch worker', ja: 'WebJob / バッチ処理' },
+    none: { en: 'No App Service workload planned yet', ja: 'App Service ワークロードは未定' }
   },
   appServicePlan: {
     b1: { en: 'B1', ja: 'B1' },
@@ -589,6 +603,14 @@ const optionDescriptionTranslations = {
     'function-app': { en: 'Best for event-driven jobs, schedules, and webhooks', ja: 'イベント駆動のジョブ、スケジュール、Webhook に最適' },
     mixed: { en: 'Use web/API hosting with serverless background processing', ja: 'Web/API と serverless 背景処理を併用' },
     undecided: { en: 'Leave the compute recommendation to the platform review', ja: '実行基盤の選定を後続レビューに委ねる' }
+  },
+  appServiceWorkloads: {
+    web: { en: 'Public site, portal, or customer-facing frontend', ja: '公開サイト、ポータル、顧客向けフロント' },
+    server: { en: 'Backend API, application server, or integration logic', ja: 'バックエンド API、アプリサーバー、連携ロジック' },
+    admin: { en: 'Admin console, review flow, or operations backend', ja: '管理画面、承認フロー、運用バックエンド' },
+    'internal-api': { en: 'Internal-only API for system-to-system calls', ja: 'システム間連携専用の内部 API' },
+    jobs: { en: 'Scheduled tasks or batch jobs running on App Service', ja: 'App Service 上で動く定期処理やバッチ' },
+    none: { en: 'No App Service workload is defined yet', ja: 'App Service ワークロードはまだ未定' }
   },
   appServicePlan: {
     b1: { en: 'PoC and development validation', ja: 'PoC / 開発検証向け' },

@@ -53,7 +53,7 @@ const normalizeSelections = (question, answers) => {
   const answer = answers[question.id];
 
   if (question.type === 'multi') {
-    return Array.isArray(answer) ? answer : [];
+    return Array.isArray(answer) ? answer : answer ? [answer] : [];
   }
 
   return answer ? [answer] : [];
@@ -259,36 +259,130 @@ const normalizeAccountCode = (value, fallback) => {
   return normalized || fallback;
 };
 
-const resolveDatabasePlan = (answers) => {
-  const tier = databaseTierCatalog[answers.databaseTier];
+const toSelectionArray = (value) => (Array.isArray(value) ? value : value ? [value] : []);
 
-  if (!tier || answers.databaseNeed === 'none') {
-    return null;
+const databaseNeedServiceMap = {
+  sql: 'sqlDatabase',
+  postgres: 'postgresql',
+  mongo: 'cosmosMongo'
+};
+
+const databaseEngineFallbackMap = {
+  sqlDatabase: 'Azure SQL Database',
+  postgresql: 'Azure Database for PostgreSQL',
+  cosmosMongo: 'Azure Cosmos DB for MongoDB'
+};
+
+const databasePerformanceOptionsByService = {
+  sqlDatabase: ['sql-dtu', 'sql-vcore', 'memory-optimized'],
+  postgresql: ['postgres-vcore', 'memory-optimized'],
+  cosmosMongo: ['mongo-ru', 'mongo-vcore', 'memory-optimized']
+};
+
+const databaseAccessModeMap = {
+  'read-only': '唯讀查詢',
+  'read-write': '交易式讀寫',
+  'schema-change': 'Schema 調整與 migration',
+  'ops-admin': '平台或 DBA 完整管理',
+  'not-applicable': '不適用'
+};
+
+const appServiceWorkloadCatalog = {
+  web: {
+    label: 'Web 前台站台',
+    suffix: 'web',
+    variableName: 'WEBAPP_WEB_NAME'
+  },
+  server: {
+    label: 'Server / API 後端',
+    suffix: 'server',
+    variableName: 'WEBAPP_SERVER_NAME'
+  },
+  admin: {
+    label: 'Admin 管理後台',
+    suffix: 'admin',
+    variableName: 'WEBAPP_ADMIN_NAME'
+  },
+  'internal-api': {
+    label: 'Internal API',
+    suffix: 'internal-api',
+    variableName: 'WEBAPP_INTERNAL_API_NAME'
+  },
+  jobs: {
+    label: 'WebJob / Batch 工作',
+    suffix: 'jobs',
+    variableName: 'WEBAPP_JOBS_NAME'
   }
+};
 
-  const accessMode = {
-    'read-only': '唯讀查詢',
-    'read-write': '交易式讀寫',
-    'schema-change': 'Schema 調整與 migration',
-    'ops-admin': '平台或 DBA 完整管理',
-    'not-applicable': '不適用'
-  }[answers.databaseAccess] ?? '未指定';
+const getSelectedDatabaseNeeds = (answers) => toSelectionArray(answers.databaseNeed).filter((value) => value !== 'none');
+
+const getSelectedAppServiceWorkloads = (answers) => toSelectionArray(answers.appServiceWorkloads).filter((value) => value !== 'none');
+
+const resolvePerformanceModelForService = (serviceId, selections) => {
+  const selectedValue = selections.find((value) => (databasePerformanceOptionsByService[serviceId] ?? []).includes(value));
+  return databasePerformanceLabelMap[selectedValue] ?? '未指定';
+};
+
+const resolvePrimaryDatabasePlan = (databasePlans) => databasePlans.find((plan) => plan.id === 'sqlDatabase') ?? databasePlans[0] ?? null;
+
+const getDatabasePlanByService = (databasePlans, serviceId) => databasePlans.find((plan) => plan.id === serviceId) ?? null;
+
+const resolveAppServiceWorkloadProfile = (answers, projectProfile = {}) => {
+  const items = getSelectedAppServiceWorkloads(answers)
+    .map((workloadId) => {
+      const workload = appServiceWorkloadCatalog[workloadId];
+
+      if (!workload) {
+        return null;
+      }
+
+      return {
+        id: workloadId,
+        ...workload
+      };
+    })
+    .filter(Boolean);
 
   return {
-    engine:
-      tier.serviceId === 'sqlDatabase'
-        ? 'Azure SQL Database'
-        : tier.serviceId === 'postgresql'
-          ? 'Azure Database for PostgreSQL'
-          : 'Azure Cosmos DB for MongoDB',
-    sku: tier.sku,
-    label: tier.label,
-    sizing: tier.sizing,
-    note: tier.note,
-    accessMode: tier.serviceId === 'cosmosMongo' ? '文件資料讀寫 / 集合管理' : accessMode,
-    performanceModel: databasePerformanceLabelMap[answers.databasePerformance] ?? '未指定',
-    backupPolicy: databaseBackupLabelMap[answers.databaseBackup] ?? '未指定'
+    items,
+    labels: items.map((item) => item.label),
+    description: projectProfile.appServiceDescription?.trim() ?? ''
   };
+};
+
+const resolveDatabasePlans = (answers) => {
+  const selectedNeeds = getSelectedDatabaseNeeds(answers);
+
+  if (!selectedNeeds.length) {
+    return [];
+  }
+
+  const tierSelections = toSelectionArray(answers.databaseTier).filter((value) => value !== 'not-applicable');
+  const performanceSelections = toSelectionArray(answers.databasePerformance).filter((value) => value !== 'not-applicable');
+
+  return selectedNeeds.map((need) => {
+    const serviceId = databaseNeedServiceMap[need];
+    const tierKey = tierSelections.find((value) => databaseTierCatalog[value]?.serviceId === serviceId);
+    const tier = tierKey ? databaseTierCatalog[tierKey] : null;
+
+    return {
+      id: serviceId,
+      engine: tier?.serviceId ? databaseEngineFallbackMap[tier.serviceId] : databaseEngineFallbackMap[serviceId],
+      sku: tier?.sku ?? '待定',
+      label: tier?.label ?? `${databaseEngineFallbackMap[serviceId]}（待定）`,
+      sizing: tier?.sizing ?? '尚未指定容量',
+      note: tier?.note ?? '尚未指定資料庫方案等級，可由平台依容量與效能需求補齊。',
+      accessMode:
+        serviceId === 'cosmosMongo'
+          ? '文件資料讀寫 / 集合管理'
+          : serviceId === 'postgresql'
+            ? '交易式讀寫 / schema 管理'
+            : databaseAccessModeMap[answers.databaseAccess] ?? '未指定',
+      performanceModel: resolvePerformanceModelForService(serviceId, performanceSelections),
+      backupPolicy: databaseBackupLabelMap[answers.databaseBackup] ?? '未指定'
+    };
+  });
 };
 
 const resolveAppServiceConfig = (answers) => ({
@@ -349,7 +443,7 @@ const resolveReferenceLinks = (answers) => {
   return [...uniqueReferences.values()];
 };
 
-const calculateCostEstimate = (answers, services, databasePlan) => {
+const calculateCostEstimate = (answers, services, databasePlans) => {
   const serviceCosts = {
     appService: { b1: 55, s1: 110, s2: 150, p1v3: 240, p2v3: 360, 'container-plan': 260 },
     functionApp: { consumption: 18, premium: 95, dedicated: 40, 'not-applicable': 0 },
@@ -382,15 +476,16 @@ const calculateCostEstimate = (answers, services, databasePlan) => {
   const planKey = answers.appServicePlan || 's1';
   const appCost = serviceCosts.appService[planKey] ?? 110;
   const functionCost = serviceCosts.functionApp[answers.functionPlan] ?? 0;
-  const dbCost = databasePlan
-    ? (serviceCosts[
-        databasePlan.engine === 'Azure SQL Database'
-          ? 'sqlDatabase'
-          : databasePlan.engine === 'Azure Database for PostgreSQL'
-            ? 'postgresql'
-            : 'cosmosMongo'
-      ][databasePlan.sku] ?? 0)
-    : 0;
+  const dbCost = databasePlans.reduce((total, databasePlan) => {
+    const costKey =
+      databasePlan.engine === 'Azure SQL Database'
+        ? 'sqlDatabase'
+        : databasePlan.engine === 'Azure Database for PostgreSQL'
+          ? 'postgresql'
+          : 'cosmosMongo';
+
+    return total + (serviceCosts[costKey][databasePlan.sku] ?? 0);
+  }, 0);
   const messagingCost = serviceCosts.messaging[answers.messagingService] ?? 0;
   const cacheCost = serviceCosts.redis[answers.cacheService] ?? 0;
   const autoscaleCost = serviceCosts.autoscale[answers.autoscaleMode] ?? 0;
@@ -466,7 +561,7 @@ const calculateCostEstimate = (answers, services, databasePlan) => {
   };
 };
 
-const resolveServiceSku = (serviceId, answers, databasePlan) => {
+const resolveServiceSku = (serviceId, answers, databasePlans) => {
   switch (serviceId) {
     case 'appService':
       return planLabelMap[answers.appServicePlan] ?? (answers.scaleExpectation === 'mission-critical' ? 'P1v3' : 'S1');
@@ -477,7 +572,7 @@ const resolveServiceSku = (serviceId, answers, databasePlan) => {
     case 'sqlDatabase':
     case 'postgresql':
     case 'cosmosMongo':
-      return databasePlan?.sku ?? '待定';
+      return getDatabasePlanByService(databasePlans, serviceId)?.sku ?? '待定';
     case 'messaging':
       return messagingLabelMap[answers.messagingService] ?? 'Standard';
     case 'redis':
@@ -510,6 +605,7 @@ const resolveServiceSku = (serviceId, answers, databasePlan) => {
 };
 
 const deriveSecurityControls = (answers) => {
+  const selectedDatabaseNeeds = getSelectedDatabaseNeeds(answers);
   const controls = [
     '所有申請資源應配置於受控 Resource Group，並透過 RBAC 最小權限原則授權。'
   ];
@@ -526,8 +622,12 @@ const deriveSecurityControls = (answers) => {
     controls.push(`資料庫需配置備份策略：${databaseBackupLabelMap[answers.databaseBackup]}，並確認定期還原演練。`);
   }
 
-  if (answers.databaseNeed === 'mongo') {
+  if (selectedDatabaseNeeds.includes('mongo')) {
     controls.push('MongoDB 建議限制可信來源、啟用備份策略，並檢查集合索引與 throughput 配置。');
+  }
+
+  if (selectedDatabaseNeeds.includes('sql')) {
+    controls.push('MSSQL 若涉及交易或報表查詢，建議同步檢查 Query Store、資料庫角色與 firewall / private access 設定。');
   }
 
   if (answers.secretAccess && answers.secretAccess !== 'none') {
@@ -581,9 +681,12 @@ const deriveSecurityControls = (answers) => {
   return controls;
 };
 
-const buildArchitecturePreview = (answers, services, databasePlan) => {
+const buildArchitecturePreview = (answers, services, databasePlans, appServiceWorkloadProfile) => {
   const hasPublicEntry = answers.internetExposure === 'public';
   const hasAi = Array.isArray(answers.aiCapability) && answers.aiCapability.some((item) => item !== 'none');
+  const databaseSummary = databasePlans.length
+    ? databasePlans.map((plan) => `${plan.engine} (${plan.sku})`).join(' + ')
+    : '無資料庫需求';
 
   return {
     ingress: [
@@ -600,6 +703,7 @@ const buildArchitecturePreview = (answers, services, databasePlan) => {
       `運算平台：${computePlatformLabelMap[answers.computePlatform] ?? '未指定'}`,
       `Azure App Service (${planLabelMap[answers.appServicePlan] ?? '未指定'})`,
       `App Runtime: ${runtimeLabelMap[answers.appServiceRuntime] ?? '未指定'}`,
+      appServiceWorkloadProfile.labels.length ? `App Service 工作負載：${appServiceWorkloadProfile.labels.join('、')}` : 'App Service 工作負載尚未指定',
       `Azure Functions (${functionPlanLabelMap[answers.functionPlan] ?? '未指定'}) / ${functionRuntimeLabelMap[answers.functionRuntime] ?? '未指定'}`,
       answers.apiManagementNeed && answers.apiManagementNeed !== 'none' ? 'Azure API Management' : '直接應用入口',
       answers.messagingService && answers.messagingService !== 'none' ? `Messaging: ${messagingLabelMap[answers.messagingService]}` : '無訊息佇列需求',
@@ -607,9 +711,9 @@ const buildArchitecturePreview = (answers, services, databasePlan) => {
       Array.isArray(answers.governanceControls) && answers.governanceControls.includes('azure-devops') ? 'Azure DevOps Pipeline' : 'CI/CD 自行規劃'
     ],
     data: [
-      databasePlan ? `${databasePlan.engine} (${databasePlan.sku})` : '無關聯式資料庫',
-      databasePlan ? `效能模型：${databasePlan.performanceModel}` : '無資料庫效能需求',
-      databasePlan ? `備份策略：${databasePlan.backupPolicy}` : '無資料庫備份需求',
+      databaseSummary,
+      databasePlans.length ? `效能模型：${databasePlans.map((plan) => `${plan.engine}=${plan.performanceModel}`).join('；')}` : '無資料庫效能需求',
+      databasePlans.length ? `備份策略：${databasePlans[0].backupPolicy}` : '無資料庫備份需求',
       Array.isArray(answers.blobUsage) && answers.blobUsage.some((item) => item !== 'none') ? 'Azure Blob Storage' : '無 Blob 儲存需求',
       hasAi ? 'Azure OpenAI / AI Search' : '無 AI 模組'
     ],
@@ -626,7 +730,10 @@ const buildArchitectureMermaid = (result) => {
   const appNode = `APP[Azure App Service\\n${result.appServiceConfig.plan} / ${result.appServiceConfig.runtime}]`;
   const functionNode = result.functionConfig.enabled ? `FUNC[Azure Functions\\n${result.functionConfig.plan} / ${result.functionConfig.runtime}]` : null;
   const apiNode = result.services.some((service) => service.id === 'apiManagement') ? 'APIM[Azure API Management]' : 'EDGE[Ingress Control]';
-  const dbNode = result.databasePlan ? `DB[( ${result.databasePlan.engine}\\n${result.databasePlan.sku} )]` : 'DB[(No Relational DB)]';
+  const dbSummary = result.databasePlans.length
+    ? result.databasePlans.map((plan) => `${plan.engine}\\n${plan.sku}`).join('\\n+\\n')
+    : 'No Database';
+  const dbNode = `DB[( ${dbSummary} )]`;
   const blobNode = result.services.some((service) => service.id === 'storage') ? 'BLOB[(Azure Blob Storage)]' : 'BLOB[(No Blob)]';
   const aiNode = result.services.some((service) => service.id === 'openAi') ? 'AI[Azure OpenAI / AI Search]' : 'AI[No AI Service]';
   const messageNode = result.services.some((service) => service.id === 'messaging') ? 'MSG[Azure Messaging Services]' : null;
@@ -655,7 +762,7 @@ const buildArchitectureMermaid = (result) => {
   ].filter(Boolean).join('\n');
 };
 
-const buildServiceAccessMatrix = (services, permissions, answers, databasePlan) => {
+const buildServiceAccessMatrix = (services, permissions, answers, databasePlans) => {
   const permissionMap = new Map(permissions.map((permission) => [permission.id, permission]));
 
   return services.map((service) => {
@@ -681,7 +788,7 @@ const buildServiceAccessMatrix = (services, permissions, answers, databasePlan) 
     return {
       id: service.id,
       serviceName: service.name,
-      sku: resolveServiceSku(service.id, answers, databasePlan),
+      sku: resolveServiceSku(service.id, answers, databasePlans),
       roles,
       status: service.priority === '必要' ? '必須申請' : service.priority === '建議' ? '建議申請' : '可選申請'
     };
@@ -691,7 +798,7 @@ const buildServiceAccessMatrix = (services, permissions, answers, databasePlan) 
 const buildRoleAssignmentScope = (permission, serviceIds) => {
   switch (permission.id) {
     case 'appServiceContributor':
-      return '/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RG_NAME/providers/Microsoft.Web/sites/$WEBAPP_NAME';
+      return '/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RG_NAME/providers/Microsoft.Web/sites/$APP_SERVICE_NAME';
     case 'functionAppContributor':
       return '/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RG_NAME/providers/Microsoft.Web/sites/$FUNCTION_APP_NAME';
     case 'apiManagementServiceContributor':
@@ -741,13 +848,20 @@ const buildRoleAssignmentScope = (permission, serviceIds) => {
   }
 };
 
-const buildAzureCliPlan = (answers, projectProfile, services, permissions, databasePlan, serviceIamProfile) => {
+const buildAzureCliPlan = (answers, projectProfile, services, permissions, databasePlans, serviceIamProfile, appServiceWorkloadProfile) => {
   const serviceIds = new Set(services.map((service) => service.id));
   const projectSlug = normalizeAsciiName(projectProfile.projectName, 'azure-intake');
   const projectCode = normalizeAccountCode(projectProfile.projectName, 'azintake');
   const location = azureLocationMap[answers.region] ?? 'eastasia';
   const appRuntime = appServiceRuntimeCliMap[answers.appServiceRuntime] ?? 'NODE:20-lts';
   const functionRuntime = functionRuntimeCliMap[answers.functionRuntime] ?? 'node';
+  const sqlPlan = getDatabasePlanByService(databasePlans, 'sqlDatabase');
+  const postgresPlan = getDatabasePlanByService(databasePlans, 'postgresql');
+  const selectedAppWorkloads = appServiceWorkloadProfile.items.length
+    ? appServiceWorkloadProfile.items
+    : serviceIds.has('appService')
+      ? [{ id: 'web', ...appServiceWorkloadCatalog.web }]
+      : [];
   const commandGroups = [
     {
       title: '初始化與共用變數',
@@ -760,7 +874,6 @@ const buildAzureCliPlan = (answers, projectProfile, services, permissions, datab
         `LOCATION="${location}"`,
         'RG_NAME="${PROJECT_SLUG}-rg"',
         'APP_PLAN_NAME="${PROJECT_SLUG}-plan"',
-        'WEBAPP_NAME="${PROJECT_SLUG}-web-${UNIQUE_SUFFIX}"',
         'FUNCTION_PLAN_NAME="${PROJECT_SLUG}-func-plan"',
         'FUNCTION_APP_NAME="${PROJECT_SLUG}-func-${UNIQUE_SUFFIX}"',
         'FUNCTION_STORAGE_NAME="${PROJECT_CODE}func${UNIQUE_SUFFIX}"',
@@ -795,6 +908,7 @@ const buildAzureCliPlan = (answers, projectProfile, services, permissions, datab
         'POSTGRES_ADMIN_PASSWORD="<postgres-admin-password>"',
         'PUBLISHER_EMAIL="<apim-owner@example.com>"',
         'PUBLISHER_NAME="<platform-owner>"',
+        ...selectedAppWorkloads.map((workload) => `${workload.variableName}="${projectSlug}-${workload.suffix}-\${UNIQUE_SUFFIX}"`),
         'az group create --name "$RG_NAME" --location "$LOCATION"'
       ],
       notes: [
@@ -815,23 +929,30 @@ const buildAzureCliPlan = (answers, projectProfile, services, permissions, datab
   }
 
   if (serviceIds.has('appService')) {
+    const webAppNames = selectedAppWorkloads.map((workload) => `$${workload.variableName}`);
     const commands = answers.appServiceRuntime === 'container'
       ? [
-          'az appservice plan create --resource-group "$RG_NAME" --name "$APP_PLAN_NAME" --location "$LOCATION" --sku "' + (databasePlan ? answers.appServicePlan?.toUpperCase?.() ?? 'S1' : answers.appServicePlan?.toUpperCase?.() ?? 'S1') + '" --is-linux',
-          'az webapp create --resource-group "$RG_NAME" --plan "$APP_PLAN_NAME" --name "$WEBAPP_NAME" --deployment-container-image-name "$ACR_LOGIN_SERVER/<image>:<tag>"'
+          'az appservice plan create --resource-group "$RG_NAME" --name "$APP_PLAN_NAME" --location "$LOCATION" --sku "' + (planLabelMap[answers.appServicePlan] ?? 'S1') + '" --is-linux',
+          ...webAppNames.map((webAppName) => 'az webapp create --resource-group "$RG_NAME" --plan "$APP_PLAN_NAME" --name "' + webAppName + '" --deployment-container-image-name "$ACR_LOGIN_SERVER/<image>:<tag>"')
         ]
       : [
           'az appservice plan create --resource-group "$RG_NAME" --name "$APP_PLAN_NAME" --location "$LOCATION" --sku "' + (planLabelMap[answers.appServicePlan] ?? 'S1') + '" --is-linux',
-          `az webapp create --resource-group "$RG_NAME" --plan "$APP_PLAN_NAME" --name "$WEBAPP_NAME" --runtime "${appRuntime}"`
+          ...webAppNames.map((webAppName) => `az webapp create --resource-group "$RG_NAME" --plan "$APP_PLAN_NAME" --name "${webAppName}" --runtime "${appRuntime}"`)
         ];
 
     if (answers.externalAccessControl === 'ip-whitelist') {
-      commands.push('az webapp config access-restriction add --resource-group "$RG_NAME" --name "$WEBAPP_NAME" --rule-name "corp-allow" --priority 100 --action Allow --ip-address "<allowed-cidr>"');
+      webAppNames.forEach((webAppName) => {
+        commands.push('az webapp config access-restriction add --resource-group "$RG_NAME" --name "' + webAppName + '" --rule-name "corp-allow" --priority 100 --action Allow --ip-address "<allowed-cidr>"');
+      });
     }
 
     commandGroups.push({
       title: 'Azure App Service',
-      commands
+      commands,
+      notes: [
+        `App Service 工作負載：${selectedAppWorkloads.map((workload) => workload.label).join('、')}`,
+        ...(appServiceWorkloadProfile.description ? [`申請補充：${appServiceWorkloadProfile.description}`] : [])
+      ]
     });
   }
 
@@ -885,19 +1006,19 @@ const buildAzureCliPlan = (answers, projectProfile, services, permissions, datab
       title: 'Azure SQL Database',
       commands: [
         'az sql server create --resource-group "$RG_NAME" --name "$SQL_SERVER_NAME" --location "$LOCATION" --admin-user "$SQL_ADMIN_USER" --admin-password "$SQL_ADMIN_PASSWORD"',
-        'az sql db create --resource-group "$RG_NAME" --server "$SQL_SERVER_NAME" --name "$SQL_DATABASE_NAME" --service-objective "' + (databasePlan?.sku ?? 'S1') + '"'
+        'az sql db create --resource-group "$RG_NAME" --server "$SQL_SERVER_NAME" --name "$SQL_DATABASE_NAME" --service-objective "' + (sqlPlan?.sku ?? 'S1') + '"'
       ],
       notes: ['SQL 內部資料庫角色如 db_datareader、db_datawriter、db_owner 需再以 T-SQL 或部署腳本建立，不屬於 Azure RBAC。']
     });
   }
 
   if (serviceIds.has('postgresql')) {
-    const postgresTier = databasePlan?.sku === 'B1ms' ? 'Burstable' : databasePlan?.sku === 'MO_E2s_v3' ? 'MemoryOptimized' : 'GeneralPurpose';
+    const postgresTier = postgresPlan?.sku === 'B1ms' ? 'Burstable' : postgresPlan?.sku === 'MO_E2s_v3' ? 'MemoryOptimized' : 'GeneralPurpose';
 
     commandGroups.push({
       title: 'Azure Database for PostgreSQL',
       commands: [
-        'az postgres flexible-server create --resource-group "$RG_NAME" --name "$POSTGRES_SERVER_NAME" --location "$LOCATION" --admin-user "$POSTGRES_ADMIN_USER" --admin-password "$POSTGRES_ADMIN_PASSWORD" --sku-name "' + (databasePlan?.sku ?? 'GP_Standard_D2s_v3') + '" --tier "' + postgresTier + '"'
+        'az postgres flexible-server create --resource-group "$RG_NAME" --name "$POSTGRES_SERVER_NAME" --location "$LOCATION" --admin-user "$POSTGRES_ADMIN_USER" --admin-password "$POSTGRES_ADMIN_PASSWORD" --sku-name "' + (postgresPlan?.sku ?? 'GP_Standard_D2s_v3') + '" --tier "' + postgresTier + '"'
       ]
     });
   }
@@ -1058,9 +1179,9 @@ const buildAzureCliPlan = (answers, projectProfile, services, permissions, datab
     const iamCommands = [];
 
     if (answers.serviceIamControls.includes('system-assigned-mi')) {
-      if (serviceIds.has('appService')) {
-        iamCommands.push('az webapp identity assign --resource-group "$RG_NAME" --name "$WEBAPP_NAME"');
-      }
+      selectedAppWorkloads.forEach((workload) => {
+        iamCommands.push('az webapp identity assign --resource-group "$RG_NAME" --name "$' + workload.variableName + '"');
+      });
 
       if (serviceIds.has('functionApp')) {
         iamCommands.push('az functionapp identity assign --resource-group "$RG_NAME" --name "$FUNCTION_APP_NAME"');
@@ -1072,7 +1193,9 @@ const buildAzureCliPlan = (answers, projectProfile, services, permissions, datab
 
       if (serviceIds.has('appService')) {
         iamCommands.push('UAMI_ID=$(az identity show --resource-group "$RG_NAME" --name "$UAMI_NAME" --query id --output tsv)');
-        iamCommands.push('az webapp identity assign --resource-group "$RG_NAME" --name "$WEBAPP_NAME" --identities "$UAMI_ID"');
+        selectedAppWorkloads.forEach((workload) => {
+          iamCommands.push('az webapp identity assign --resource-group "$RG_NAME" --name "$' + workload.variableName + '" --identities "$UAMI_ID"');
+        });
       }
 
       if (serviceIds.has('functionApp')) {
@@ -1206,19 +1329,22 @@ export const evaluateSurvey = (answers, projectProfile = {}) => {
         : '一般';
 
   const applicationStatus = determineApplicationStatus(readiness, riskLevel);
-  const databasePlan = resolveDatabasePlan(mergedAnswers);
+  const databasePlans = resolveDatabasePlans(mergedAnswers);
+  const databasePlan = resolvePrimaryDatabasePlan(databasePlans);
   const appServiceConfig = resolveAppServiceConfig(mergedAnswers);
   const functionConfig = resolveFunctionConfig(mergedAnswers);
   const autoscaleProfile = resolveAutoscaleProfile(mergedAnswers);
   const generatorProfile = resolveGeneratorProfile(mergedAnswers);
+  const appServiceWorkloadProfile = resolveAppServiceWorkloadProfile(mergedAnswers, projectProfile);
   const serviceIamProfile = resolveServiceIamProfile(mergedAnswers);
   const securityControls = deriveSecurityControls(mergedAnswers);
-  const serviceAccessMatrix = buildServiceAccessMatrix(services, permissions, mergedAnswers, databasePlan);
+  const serviceAccessMatrix = buildServiceAccessMatrix(services, permissions, mergedAnswers, databasePlans);
   const referenceLinks = resolveReferenceLinks(mergedAnswers);
-  const costEstimate = calculateCostEstimate(mergedAnswers, services, databasePlan);
-  const architecturePreview = buildArchitecturePreview(mergedAnswers, services, databasePlan);
+  const costEstimate = calculateCostEstimate(mergedAnswers, services, databasePlans);
+  const architecturePreview = buildArchitecturePreview(mergedAnswers, services, databasePlans, appServiceWorkloadProfile);
   const regionLabel = regionLabelMap[mergedAnswers.region] ?? '未指定';
-  const azureCliPlan = buildAzureCliPlan(mergedAnswers, projectProfile, services, permissions, databasePlan, serviceIamProfile);
+  const azureCliPlan = buildAzureCliPlan(mergedAnswers, projectProfile, services, permissions, databasePlans, serviceIamProfile, appServiceWorkloadProfile);
+  const databaseSummarySku = databasePlans.length ? databasePlans.map((plan) => `${plan.engine} ${plan.sku}`).join(' / ') : 'N/A';
 
   const executiveSummary = [
     projectProfile.projectName ? `專案名稱：${projectProfile.projectName}` : null,
@@ -1229,8 +1355,9 @@ export const evaluateSurvey = (answers, projectProfile = {}) => {
     `問卷完成度：${readiness}%`,
     `治理風險等級：${riskLevel}`,
     services.length ? `核心服務：${services.slice(0, 4).map((item) => item.name).join('、')}` : null,
-    databasePlan ? `資料庫方案：${databasePlan.label}` : null,
+    databasePlans.length ? `資料庫方案：${databasePlans.map((plan) => plan.label).join('、')}` : null,
     `運算平台：${computePlatformLabelMap[mergedAnswers.computePlatform] ?? '未指定'}`,
+    appServiceWorkloadProfile.labels.length ? `App Service 工作負載：${appServiceWorkloadProfile.labels.join('、')}` : null,
     `Auto Scale：${autoscaleProfile.mode}`,
     serviceIamProfile.labels.length ? `服務 IAM：${serviceIamProfile.labels.join('、')}` : null,
     `雲端位置：${regionLabel}`,
@@ -1246,8 +1373,11 @@ export const evaluateSurvey = (answers, projectProfile = {}) => {
     permissions,
     rationale,
     executiveSummary,
+    databasePlans,
     databasePlan,
+    databaseSummarySku,
     appServiceConfig,
+    appServiceWorkloadProfile,
     functionConfig,
     autoscaleProfile,
     generatorProfile,
@@ -1274,6 +1404,7 @@ export const buildReportMarkdown = (projectProfile, result) => {
     `- 雲端位置：${result.regionLabel}`,
     `- 對外資源：${projectProfile.publicResourceScope || '未填寫'}`,
     `- 外部 IP 白名單：${projectProfile.externalIps || '未填寫'}`,
+    `- App Service 工作負載補充：${projectProfile.appServiceDescription || '未填寫'}`,
     `- 申請狀態：${result.applicationStatus}`,
     `- 產生時間：${result.generatedAt}`,
     `- 風險等級：${result.riskLevel}`,
@@ -1288,17 +1419,18 @@ export const buildReportMarkdown = (projectProfile, result) => {
     `| 備註 | ${result.costEstimate.note} |`
   ];
 
-  const databaseLines = result.databasePlan
-    ? [
-        `- 引擎：${result.databasePlan.engine}`,
-        `- 方案：${result.databasePlan.label}`,
-        `- SKU：${result.databasePlan.sku}`,
-        `- 容量：${result.databasePlan.sizing}`,
-        `- 存取模式：${result.databasePlan.accessMode}`,
-        `- 效能模型：${result.databasePlan.performanceModel}`,
-        `- 備份策略：${result.databasePlan.backupPolicy}`,
-        `- 備註：${result.databasePlan.note}`
-      ]
+  const databaseLines = result.databasePlans.length
+    ? result.databasePlans.flatMap((plan) => [
+        `- 引擎：${plan.engine}`,
+        `- 方案：${plan.label}`,
+        `- SKU：${plan.sku}`,
+        `- 容量：${plan.sizing}`,
+        `- 存取模式：${plan.accessMode}`,
+        `- 效能模型：${plan.performanceModel}`,
+        `- 備份策略：${plan.backupPolicy}`,
+        `- 備註：${plan.note}`,
+        ''
+      ]).slice(0, -1)
     : ['- 無資料庫方案需求'];
 
   const serviceLines = [
@@ -1349,6 +1481,8 @@ export const buildReportMarkdown = (projectProfile, result) => {
     `| 項目 | 內容 |`,
     `| --- | --- |`,
     `| 主要運算平台 | ${result.functionConfig.enabled && result.appServiceConfig.plan !== '未指定 / 不使用 App Service' ? 'App Service + Azure Functions' : result.functionConfig.enabled ? 'Azure Functions' : 'Azure App Service'} |`,
+    `| App Service 工作負載 | ${result.appServiceWorkloadProfile.labels.join('、') || '未指定'} |`,
+    `| App Service 補充說明 | ${result.appServiceWorkloadProfile.description || '未填寫'} |`,
     `| App Service Plan | ${result.appServiceConfig.plan} |`,
     `| App Service Runtime | ${result.appServiceConfig.runtime} |`,
     `| Azure Functions Plan | ${result.functionConfig.plan} |`,

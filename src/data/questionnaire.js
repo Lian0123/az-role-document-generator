@@ -552,8 +552,8 @@ export const questionnaire = [
   {
     id: 'databaseNeed',
     section: '資料與合規',
-    title: '系統需要哪種類型的資料庫？',
-    type: 'single',
+    title: '系統需要哪些資料庫類型？',
+    type: 'multi',
     references: [
       {
         title: 'Azure SQL Database 文件',
@@ -568,12 +568,14 @@ export const questionnaire = [
       {
         value: 'sql',
         label: '關聯式交易資料庫（Azure SQL）',
+        description: '適合交易資料、權限、報表與需要 Query Store 的情境',
         services: ['sqlDatabase'],
         roles: ['sqlContributor']
       },
       {
         value: 'postgres',
         label: '開源型資料庫（PostgreSQL）',
+        description: '適合開源生態、彈性 schema 與一般交易型工作負載',
         services: ['postgresql'],
         roles: ['postgresContributor']
       },
@@ -586,23 +588,17 @@ export const questionnaire = [
       },
       {
         value: 'none',
-        label: '暫無結構化資料庫需求',
+        label: '暫無資料庫需求',
         services: ['storage'],
         roles: ['storageBlobDataContributor']
-      },
-      {
-        value: 'hybrid-db',
-        label: '同時需要 SQL、NoSQL 與非結構化儲存',
-        services: ['sqlDatabase', 'cosmosMongo', 'storage'],
-        roles: ['sqlContributor', 'cosmosDbOperator', 'storageBlobDataContributor']
       }
     ]
   },
   {
     id: 'databaseTier',
     section: '資料與合規',
-    title: '資料庫方案等級為何？',
-    type: 'single',
+    title: '資料庫方案等級為何？可依不同引擎各選一個',
+    type: 'multi',
     references: [
       {
         title: 'Azure SQL 服務層級',
@@ -743,8 +739,8 @@ export const questionnaire = [
   {
     id: 'databasePerformance',
     section: '資料與合規',
-    title: '資料庫效能模型需求為何？',
-    type: 'single',
+    title: '資料庫效能模型需求為何？可依不同引擎各選一個',
+    type: 'multi',
     references: [
       {
         title: 'Azure SQL DTU 與 vCore 比較',
@@ -949,6 +945,61 @@ export const questionnaire = [
       {
         value: 'undecided',
         label: '尚未決定 / 由平台建議',
+        services: [],
+        roles: []
+      }
+    ]
+  },
+  {
+    id: 'appServiceWorkloads',
+    section: '應用與平台',
+    title: 'App Service 需要承載哪些工作負載？',
+    type: 'multi',
+    references: [
+      {
+        title: 'Azure App Service 文件',
+        url: 'https://learn.microsoft.com/azure/app-service/'
+      }
+    ],
+    options: [
+      {
+        value: 'web',
+        label: 'Web 前台站台',
+        description: '公開網站、入口頁、前端應用或內容展示站台',
+        services: ['appService'],
+        roles: ['appServiceContributor']
+      },
+      {
+        value: 'server',
+        label: 'Server / API 後端',
+        description: '承載 API、後端商業邏輯與整合服務',
+        services: ['appService'],
+        roles: ['appServiceContributor']
+      },
+      {
+        value: 'admin',
+        label: 'Admin 管理後台',
+        description: '內部管理介面、審核流程或維運後台',
+        services: ['appService'],
+        roles: ['appServiceContributor']
+      },
+      {
+        value: 'internal-api',
+        label: 'Internal API',
+        description: '僅供內部系統或服務間呼叫的應用',
+        services: ['appService'],
+        roles: ['appServiceContributor']
+      },
+      {
+        value: 'jobs',
+        label: 'WebJob / Batch 工作',
+        description: '以 App Service 執行排程、批次同步或背景任務',
+        services: ['appService'],
+        roles: ['appServiceContributor']
+      },
+      {
+        value: 'none',
+        label: '暫不規劃 App Service 工作負載',
         services: [],
         roles: []
       }

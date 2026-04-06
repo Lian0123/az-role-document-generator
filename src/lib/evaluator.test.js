@@ -3,31 +3,39 @@ import { buildReportMarkdown, evaluateSurvey } from './evaluator';
 
 describe('evaluateSurvey', () => {
   it('根據資料庫方案與安全需求產出服務、角色與狀態', () => {
-    const result = evaluateSurvey({
-      projectType: 'web-app',
-      region: 'east-asia',
-      billingPriority: 'premium',
-      dataSensitivity: 'restricted',
-      databaseNeed: 'sql',
-      databaseTier: 'sql-s2',
-      databasePerformance: 'sql-vcore',
-      databaseBackup: 'geo-redundant',
-      queryStoreAccess: 'query-admin',
-      blobUsage: ['report-export', 'rag-kb'],
-      appServicePlan: 'p1v3',
-      appServiceRuntime: 'dotnet',
-      databaseAccess: 'schema-change',
-      internetExposure: 'public',
-      externalAccessControl: 'ip-whitelist',
-      identityModel: 'hybrid',
-      secretAccess: 'hybrid',
-      serviceIamControls: ['system-assigned-mi', 'user-assigned-mi', 'least-privilege-rbac'],
-      governanceControls: ['azure-devops', 'arm-rbac', 'mfa'],
-      generatorAccess: 'key-and-url',
-      aiCapability: ['gen-ai', 'ocr'],
-      opsNeeds: ['monitoring', 'security-audit'],
-      scaleExpectation: 'mission-critical'
-    });
+    const result = evaluateSurvey(
+      {
+        projectType: 'web-app',
+        region: 'east-asia',
+        billingPriority: 'premium',
+        dataSensitivity: 'restricted',
+        databaseNeed: ['sql', 'mongo'],
+        databaseTier: ['sql-s2', 'mongo-m30'],
+        databasePerformance: ['sql-vcore', 'mongo-vcore'],
+        databaseBackup: 'geo-redundant',
+        queryStoreAccess: 'query-admin',
+        blobUsage: ['report-export', 'rag-kb'],
+        computePlatform: 'app-service',
+        appServiceWorkloads: ['web', 'server'],
+        appServicePlan: 'p1v3',
+        appServiceRuntime: 'dotnet',
+        databaseAccess: 'schema-change',
+        internetExposure: 'public',
+        externalAccessControl: 'ip-whitelist',
+        identityModel: 'hybrid',
+        secretAccess: 'hybrid',
+        serviceIamControls: ['system-assigned-mi', 'user-assigned-mi', 'least-privilege-rbac'],
+        governanceControls: ['azure-devops', 'arm-rbac', 'mfa'],
+        generatorAccess: 'key-and-url',
+        aiCapability: ['gen-ai', 'ocr'],
+        opsNeeds: ['monitoring', 'security-audit'],
+        scaleExpectation: 'mission-critical'
+      },
+      {
+        projectName: '多庫平台',
+        appServiceDescription: 'web 提供外部入口，server 提供內部 API 與整合服務'
+      }
+    );
 
     const serviceNames = result.services.map((service) => service.name);
     const roleNames = result.permissions.map((permission) => permission.name);
@@ -35,22 +43,28 @@ describe('evaluateSurvey', () => {
     expect(serviceNames).toContain('Azure App Service');
     expect(serviceNames).toContain('Application Gateway WAF');
     expect(serviceNames).toContain('Azure OpenAI Service');
+    expect(serviceNames).toContain('Azure Cosmos DB for MongoDB');
     expect(roleNames).toContain('Network Contributor');
     expect(roleNames).toContain('db_datareader');
     expect(roleNames).toContain('db_datawriter');
     expect(roleNames).toContain('db_owner');
+    expect(roleNames).toContain('Cosmos DB Built-in Data Contributor');
     expect(roleNames).toContain('Key Vault Secrets User');
     expect(roleNames).toContain('Azure DevOps Project Administrators');
     expect(roleNames).toContain('Conditional Access Administrator');
     expect(roleNames).toContain('Managed Identity Operator');
     expect(result.databasePlan?.sku).toBe('S2');
+    expect(result.databasePlans).toHaveLength(2);
     expect(result.databasePlan?.performanceModel).toBe('Azure SQL vCore 模型');
     expect(result.databasePlan?.backupPolicy).toBe('異地備份 / Geo-Redundant');
     expect(result.appServiceConfig.plan).toBe('P1v3');
+    expect(result.appServiceWorkloadProfile.labels).toEqual(['Web 前台站台', 'Server / API 後端']);
     expect(result.serviceIamProfile.labels).toContain('啟用 System-assigned Managed Identity');
     expect(result.azureCliPlan.commandGroups.some((group) => group.title === 'Azure App Service')).toBe(true);
     expect(result.azureCliPlan.commandGroups.some((group) => group.title === '服務 IAM 控制')).toBe(true);
     expect(result.azureCliPlan.commandGroups.some((group) => group.title === 'Azure RBAC 指派')).toBe(true);
+    expect(result.azureCliPlan.commandGroups.find((group) => group.title === '初始化與共用變數')?.commands.join('\n')).toContain('WEBAPP_WEB_NAME');
+    expect(result.azureCliPlan.commandGroups.find((group) => group.title === '初始化與共用變數')?.commands.join('\n')).toContain('WEBAPP_SERVER_NAME');
     expect(result.costEstimate.high).toBeGreaterThan(result.costEstimate.low);
     expect(result.applicationStatus).toBe('待安全審核');
   });
@@ -91,7 +105,8 @@ describe('evaluateSurvey', () => {
         applicantEmail: 'owner@example.com',
         launchDate: '2026-07-01',
         publicResourceScope: '內部文件入口',
-        externalIps: '10.10.10.10'
+        externalIps: '10.10.10.10',
+        appServiceDescription: '提供文件入口與 API 整合服務'
       },
       result
     );
@@ -102,6 +117,8 @@ describe('evaluateSurvey', () => {
     expect(markdown).toContain('PostgreSQL General Purpose');
     expect(markdown).toContain('效能模型：PostgreSQL vCore 模型');
     expect(markdown).toContain('備份策略：Point-in-Time Restore');
+    expect(markdown).toContain('App Service 工作負載');
+    expect(markdown).toContain('提供文件入口與 API 整合服務');
     expect(markdown).toContain('申請狀態');
     expect(markdown).toContain('服務 IAM 控制');
     expect(markdown).toContain('Azure CLI 建置指令');

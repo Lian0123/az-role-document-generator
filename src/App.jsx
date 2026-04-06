@@ -60,60 +60,63 @@ const initialProfile = {
   applicantEmail: '',
   launchDate: '',
   publicResourceScope: '',
-  externalIps: ''
+  externalIps: '',
+  appServiceDescription: ''
 };
 
+const getSelectedValues = (value) => (Array.isArray(value) ? value : value ? [value] : []);
+
 const getVisibleOptions = (question, answers) => {
+  const selectedDatabases = getSelectedValues(answers.databaseNeed).filter((value) => value !== 'none');
+
   if (question.id === 'databaseTier') {
-    if (answers.databaseNeed === 'sql') {
-      return question.options.filter((option) => option.value.startsWith('sql-') || option.value === 'not-applicable');
+    if (!selectedDatabases.length) {
+      return question.options.filter((option) => option.value === 'not-applicable');
     }
 
-    if (answers.databaseNeed === 'postgres') {
-      return question.options.filter((option) => option.value.startsWith('postgres-') || option.value === 'not-applicable');
-    }
+    return question.options.filter((option) => {
+      if (option.value === 'not-applicable') {
+        return true;
+      }
 
-    if (answers.databaseNeed === 'mongo') {
-      return question.options.filter((option) => option.value.startsWith('mongo-') || option.value === 'not-applicable');
-    }
-
-    if (answers.databaseNeed === 'hybrid-db') {
-      return question.options.filter((option) => option.value !== 'not-applicable');
-    }
-
-    return question.options.filter((option) => option.value === 'not-applicable');
+      return (selectedDatabases.includes('sql') && option.value.startsWith('sql-'))
+        || (selectedDatabases.includes('postgres') && option.value.startsWith('postgres-'))
+        || (selectedDatabases.includes('mongo') && option.value.startsWith('mongo-'));
+    });
   }
 
   if (question.id === 'databasePerformance') {
-    if (answers.databaseNeed === 'sql') {
-      return question.options.filter((option) => ['sql-dtu', 'sql-vcore', 'memory-optimized', 'not-applicable'].includes(option.value));
+    if (!selectedDatabases.length) {
+      return question.options.filter((option) => option.value === 'not-applicable');
     }
 
-    if (answers.databaseNeed === 'postgres') {
-      return question.options.filter((option) => ['postgres-vcore', 'memory-optimized', 'not-applicable'].includes(option.value));
-    }
+    return question.options.filter((option) => {
+      if (option.value === 'not-applicable' || option.value === 'memory-optimized') {
+        return true;
+      }
 
-    if (answers.databaseNeed === 'mongo') {
-      return question.options.filter((option) => ['mongo-ru', 'mongo-vcore', 'memory-optimized', 'not-applicable'].includes(option.value));
-    }
+      return (selectedDatabases.includes('sql') && ['sql-dtu', 'sql-vcore'].includes(option.value))
+        || (selectedDatabases.includes('postgres') && option.value === 'postgres-vcore')
+        || (selectedDatabases.includes('mongo') && ['mongo-ru', 'mongo-vcore'].includes(option.value));
+    });
+  }
 
-    if (answers.databaseNeed === 'hybrid-db') {
-      return question.options.filter((option) => option.value !== 'not-applicable');
-    }
-
+  if (question.id === 'databaseBackup' && !selectedDatabases.length) {
     return question.options.filter((option) => option.value === 'not-applicable');
   }
 
-  if (question.id === 'databaseBackup' && !['sql', 'postgres', 'mongo', 'hybrid-db'].includes(answers.databaseNeed)) {
+  if (question.id === 'databaseAccess' && !selectedDatabases.includes('sql')) {
     return question.options.filter((option) => option.value === 'not-applicable');
   }
 
-  if (question.id === 'databaseAccess' && !['sql', 'hybrid-db'].includes(answers.databaseNeed)) {
+  if (question.id === 'queryStoreAccess' && !selectedDatabases.includes('sql')) {
     return question.options.filter((option) => option.value === 'not-applicable');
   }
 
-  if (question.id === 'queryStoreAccess' && !['sql', 'hybrid-db'].includes(answers.databaseNeed)) {
-    return question.options.filter((option) => option.value === 'not-applicable');
+  if (question.id === 'appServiceWorkloads') {
+    return ['app-service', 'mixed'].includes(answers.computePlatform)
+      ? question.options
+      : question.options.filter((option) => option.value === 'none');
   }
 
   if (question.id === 'appServicePlan' || question.id === 'appServiceRuntime') {
@@ -142,6 +145,11 @@ const getRegionDisplay = (questions, answers) => questions
 const getOptionDisplay = (questions, questionId, value) => questions
   .find((question) => question.id === questionId)
   ?.options.find((option) => option.value === value)?.label;
+
+const getOptionLabels = (questions, questionId, values) => {
+  const lookup = new Map((questions.find((question) => question.id === questionId)?.options ?? []).map((option) => [option.value, option.label]));
+  return getSelectedValues(values).map((value) => lookup.get(value)).filter(Boolean);
+};
 
 const renderBoxIcon = (icon, x, y) => {
   switch (icon) {
@@ -258,16 +266,25 @@ function ArchitectureSvg({ result, regionLabel, externalAccessLabel }) {
     : usesMixedCompute
       ? `${result.appServiceConfig.plan} + ${result.functionConfig.plan}`
       : `${result.appServiceConfig.plan} / ${result.appServiceConfig.runtime}`;
+  const databaseSummary = result.databasePlans.length
+    ? result.databasePlans.map((plan) => plan.engine.replace('Azure ', '')).join(' + ')
+    : (result.databasePlan?.engine || 'Data Layer');
+  const databaseSkuSummary = result.databasePlans.length
+    ? result.databasePlans.map((plan) => plan.sku).join(' / ')
+    : (result.databasePlan?.sku || 'Not Applicable');
+  const appWorkloadSummary = result.appServiceWorkloadProfile.labels.length
+    ? result.appServiceWorkloadProfile.labels.join(' / ')
+    : computeSubtitle;
 
   const boxes = [
     { id: 'users', x: 24, y: 46, width: 150, height: 64, title: 'Users / Partner', subtitle: 'Internet / VPN', color: '#0f4c81', icon: 'users' },
     { id: 'edge', x: 212, y: 46, width: 170, height: 64, title: services.has('waf') ? 'WAF / Front Door' : 'Ingress Control', subtitle: regionLabel, color: '#1479c9', icon: 'shield' },
     { id: 'apim', x: 420, y: 46, width: 170, height: 64, title: services.has('apiManagement') ? 'Azure API Management' : 'API Access Layer', subtitle: services.has('apiManagement') ? 'Policy / Product / Subscription' : 'Direct App Access', color: '#008272', icon: 'api' },
-    { id: 'app', x: 628, y: 46, width: 180, height: 64, title: computeTitle, subtitle: computeSubtitle, color: '#0b6bc7', icon: 'app' },
+    { id: 'app', x: 628, y: 46, width: 180, height: 64, title: computeTitle, subtitle: appWorkloadSummary, color: '#0b6bc7', icon: 'app' },
     { id: 'identity', x: 24, y: 170, width: 170, height: 64, title: 'Entra ID / MFA', subtitle: services.has('mfa') ? 'Conditional Access Enabled' : 'Identity Control', color: '#5c2d91', icon: 'identity' },
     { id: 'kv', x: 232, y: 170, width: 170, height: 64, title: 'Key Vault', subtitle: result.generatorProfile.mode, color: '#ca5010', icon: 'key' },
     { id: 'vnet', x: 440, y: 170, width: 170, height: 64, title: services.has('vnet') ? 'VNet / Private Endpoint' : 'Network Control', subtitle: externalAccessLabel || 'Network Policy', color: '#486991', icon: 'network' },
-    { id: 'sql', x: 648, y: 170, width: 180, height: 64, title: result.databasePlan?.engine || 'Data Layer', subtitle: result.databasePlan?.sku || 'Not Applicable', color: '#0063b1', icon: 'database' },
+    { id: 'sql', x: 648, y: 170, width: 180, height: 64, title: databaseSummary, subtitle: databaseSkuSummary, color: '#0063b1', icon: 'database' },
     { id: 'blob', x: 856, y: 170, width: 170, height: 64, title: services.has('storage') ? 'Blob Storage' : 'Storage Optional', subtitle: services.has('storage') ? 'Document / Media / Export' : 'No Blob Selected', color: '#2d7d9a', icon: 'storage' },
     { id: 'ai', x: 856, y: 46, width: 170, height: 64, title: services.has('openAi') ? 'Azure OpenAI / AI Search' : 'AI Layer', subtitle: services.has('openAi') ? 'RAG / Generator' : 'No AI Required', color: '#7fba00', icon: 'ai' },
     { id: 'msg', x: 24, y: 294, width: 170, height: 64, title: services.has('messaging') ? 'Messaging Services' : 'Messaging Optional', subtitle: services.has('messaging') ? 'Queue / Topic / Event' : 'No Queue Selected', color: '#7a4f01', icon: 'queue' },
@@ -352,6 +369,25 @@ function PrintableReport({ profile, result, ui, regionDisplay, externalAccessDis
           <div><strong>{ui.launchDate}</strong><span>{profile.launchDate || ui.notSpecified}</span></div>
           <div><strong>{ui.cloudRegion}</strong><span>{regionDisplay || result.regionLabel}</span></div>
           <div><strong>{ui.applicationStatus}</strong><span>{applicationStatusDisplay}</span></div>
+          <div><strong>App Service 工作負載</strong><span>{result.appServiceWorkloadProfile.labels.join('、') || ui.notSpecified}</span></div>
+          <div><strong>{ui.appServiceDescription}</strong><span>{profile.appServiceDescription || ui.notSpecified}</span></div>
+        </div>
+      </section>
+
+      <section className="print-section">
+        <h2>{ui.databasePlan}</h2>
+        <div className="print-grid">
+          {result.databasePlans.length ? result.databasePlans.map((plan) => (
+            <div key={plan.id}>
+              <strong>{plan.label}</strong>
+              <span>{`${plan.engine} / ${plan.sku} / ${plan.performanceModel}`}</span>
+            </div>
+          )) : (
+            <div>
+              <strong>{ui.noDatabase}</strong>
+              <span>{ui.noDatabaseNote}</span>
+            </div>
+          )}
         </div>
       </section>
 
@@ -473,6 +509,7 @@ function App() {
   const result = useMemo(() => evaluateSurvey(answers, projectProfile), [answers, projectProfile]);
   const regionDisplay = useMemo(() => getRegionDisplay(localizedQuestions, answers) ?? result.regionLabel, [localizedQuestions, answers, result.regionLabel]);
   const externalAccessDisplay = useMemo(() => getOptionDisplay(localizedQuestions, 'externalAccessControl', answers.externalAccessControl), [localizedQuestions, answers.externalAccessControl]);
+  const appServiceWorkloadLabels = useMemo(() => getOptionLabels(localizedQuestions, 'appServiceWorkloads', answers.appServiceWorkloads), [localizedQuestions, answers.appServiceWorkloads]);
   const applicationStatusDisplay = useMemo(() => translateApplicationStatus(result.applicationStatus, locale), [result.applicationStatus, locale]);
   const summaryItems = useMemo(() => {
     const items = [
@@ -482,11 +519,12 @@ function App() {
       `${ui.applicationStatus}: ${applicationStatusDisplay}`,
       `${ui.readiness}: ${result.readiness}%`,
       `${ui.cloudRegion}: ${regionDisplay}`,
+      appServiceWorkloadLabels.length ? `App Service: ${appServiceWorkloadLabels.join('、')}` : null,
       `${ui.monthlyEstimate}: ${result.costEstimate.currency} ${result.costEstimate.low}-${result.costEstimate.high} ${ui.perMonth}`
     ];
 
     return items.filter(Boolean);
-  }, [projectProfile, result, regionDisplay, ui, applicationStatusDisplay]);
+  }, [projectProfile, result, regionDisplay, ui, applicationStatusDisplay, appServiceWorkloadLabels]);
 
   const answeredCount = questionnaire.filter((question) => {
     const value = answers[question.id];
@@ -556,59 +594,12 @@ function App() {
 
   const handleSingleAnswer = (questionId, optionValue) => {
     setAnswers((current) => {
-      if (questionId === 'databaseNeed') {
-        if (optionValue === 'sql') {
-          return {
-            ...current,
-            databaseNeed: optionValue,
-            databaseTier: current.databaseTier?.startsWith('sql-') ? current.databaseTier : '',
-            databasePerformance: ['sql-dtu', 'sql-vcore', 'memory-optimized'].includes(current.databasePerformance) ? current.databasePerformance : '',
-            databaseBackup: current.databaseBackup === 'not-applicable' ? '' : current.databaseBackup,
-            databaseAccess: current.databaseAccess === 'not-applicable' ? '' : current.databaseAccess,
-            queryStoreAccess: current.queryStoreAccess === 'not-applicable' ? '' : current.queryStoreAccess
-          };
-        }
-
-        if (optionValue === 'postgres') {
-          return {
-            ...current,
-            databaseNeed: optionValue,
-            databaseTier: current.databaseTier?.startsWith('postgres-') ? current.databaseTier : '',
-            databasePerformance: ['postgres-vcore', 'memory-optimized'].includes(current.databasePerformance) ? current.databasePerformance : '',
-            databaseBackup: current.databaseBackup === 'not-applicable' ? '' : current.databaseBackup,
-            databaseAccess: 'not-applicable',
-            queryStoreAccess: 'not-applicable'
-          };
-        }
-
-        if (optionValue === 'mongo') {
-          return {
-            ...current,
-            databaseNeed: optionValue,
-            databaseTier: current.databaseTier?.startsWith('mongo-') ? current.databaseTier : '',
-            databasePerformance: ['mongo-ru', 'mongo-vcore', 'memory-optimized'].includes(current.databasePerformance) ? current.databasePerformance : '',
-            databaseBackup: current.databaseBackup === 'not-applicable' ? '' : current.databaseBackup,
-            databaseAccess: 'not-applicable',
-            queryStoreAccess: 'not-applicable'
-          };
-        }
-
-        return {
-          ...current,
-          databaseNeed: optionValue,
-          databaseTier: optionValue === 'hybrid-db' ? current.databaseTier : 'not-applicable',
-          databasePerformance: optionValue === 'hybrid-db' ? current.databasePerformance : 'not-applicable',
-          databaseBackup: optionValue === 'hybrid-db' ? current.databaseBackup : 'not-applicable',
-          databaseAccess: optionValue === 'hybrid-db' ? current.databaseAccess : 'not-applicable',
-          queryStoreAccess: optionValue === 'hybrid-db' ? current.queryStoreAccess : 'not-applicable'
-        };
-      }
-
       if (questionId === 'computePlatform') {
         if (optionValue === 'app-service') {
           return {
             ...current,
             computePlatform: optionValue,
+            appServiceWorkloads: current.appServiceWorkloads?.includes('none') ? [] : current.appServiceWorkloads,
             appServicePlan: current.appServicePlan === 'not-applicable' ? '' : current.appServicePlan,
             appServiceRuntime: current.appServiceRuntime === 'not-applicable' ? '' : current.appServiceRuntime,
             functionPlan: 'not-applicable',
@@ -620,6 +611,7 @@ function App() {
           return {
             ...current,
             computePlatform: optionValue,
+            appServiceWorkloads: ['none'],
             appServicePlan: 'not-applicable',
             appServiceRuntime: 'not-applicable',
             functionPlan: current.functionPlan === 'not-applicable' ? '' : current.functionPlan,
@@ -631,6 +623,7 @@ function App() {
           return {
             ...current,
             computePlatform: optionValue,
+            appServiceWorkloads: current.appServiceWorkloads?.includes('none') ? [] : current.appServiceWorkloads,
             appServicePlan: current.appServicePlan === 'not-applicable' ? '' : current.appServicePlan,
             appServiceRuntime: current.appServiceRuntime === 'not-applicable' ? '' : current.appServiceRuntime,
             functionPlan: current.functionPlan === 'not-applicable' ? '' : current.functionPlan,
@@ -641,6 +634,7 @@ function App() {
         return {
           ...current,
           computePlatform: optionValue,
+          appServiceWorkloads: ['none'],
           appServicePlan: 'not-applicable',
           appServiceRuntime: 'not-applicable',
           functionPlan: 'not-applicable',
@@ -658,14 +652,104 @@ function App() {
 
   const handleMultiAnswer = (questionId, optionValue) => {
     setAnswers((current) => {
-      const existingValues = current[questionId] ?? [];
-      const nextValues = existingValues.includes(optionValue)
-        ? existingValues.filter((value) => value !== optionValue)
-        : [...existingValues.filter((value) => value !== 'none'), optionValue];
+      const existingValues = getSelectedValues(current[questionId]);
+
+      if (questionId === 'databaseNeed') {
+        const nextValues = optionValue === 'none'
+          ? ['none']
+          : existingValues.includes(optionValue)
+            ? existingValues.filter((value) => value !== optionValue && value !== 'none')
+            : [...existingValues.filter((value) => value !== 'none'), optionValue];
+        const selectedDatabases = nextValues.filter((value) => value !== 'none');
+        const filterTierValues = getSelectedValues(current.databaseTier).filter((value) => value !== 'not-applicable').filter((value) => {
+          return (selectedDatabases.includes('sql') && value.startsWith('sql-'))
+            || (selectedDatabases.includes('postgres') && value.startsWith('postgres-'))
+            || (selectedDatabases.includes('mongo') && value.startsWith('mongo-'));
+        });
+        const filterPerformanceValues = getSelectedValues(current.databasePerformance).filter((value) => value !== 'not-applicable').filter((value) => {
+          return value === 'memory-optimized'
+            || (selectedDatabases.includes('sql') && ['sql-dtu', 'sql-vcore'].includes(value))
+            || (selectedDatabases.includes('postgres') && value === 'postgres-vcore')
+            || (selectedDatabases.includes('mongo') && ['mongo-ru', 'mongo-vcore'].includes(value));
+        });
+
+        return {
+          ...current,
+          databaseNeed: nextValues.length ? nextValues : ['none'],
+          databaseTier: selectedDatabases.length ? filterTierValues : ['not-applicable'],
+          databasePerformance: selectedDatabases.length ? filterPerformanceValues : ['not-applicable'],
+          databaseBackup: selectedDatabases.length ? (current.databaseBackup === 'not-applicable' ? '' : current.databaseBackup) : 'not-applicable',
+          databaseAccess: selectedDatabases.includes('sql') ? (current.databaseAccess === 'not-applicable' ? '' : current.databaseAccess) : 'not-applicable',
+          queryStoreAccess: selectedDatabases.includes('sql') ? (current.queryStoreAccess === 'not-applicable' ? '' : current.queryStoreAccess) : 'not-applicable'
+        };
+      }
+
+      if (questionId === 'databaseTier') {
+        if (optionValue === 'not-applicable') {
+          return {
+            ...current,
+            databaseTier: ['not-applicable']
+          };
+        }
+
+        const family = optionValue.startsWith('sql-') ? 'sql-' : optionValue.startsWith('postgres-') ? 'postgres-' : 'mongo-';
+        const nextValues = existingValues.includes(optionValue)
+          ? existingValues.filter((value) => value !== optionValue)
+          : [...existingValues.filter((value) => value !== 'not-applicable' && !value.startsWith(family)), optionValue];
+
+        return {
+          ...current,
+          databaseTier: nextValues.length ? nextValues : []
+        };
+      }
+
+      if (questionId === 'databasePerformance') {
+        if (optionValue === 'not-applicable') {
+          return {
+            ...current,
+            databasePerformance: ['not-applicable']
+          };
+        }
+
+        const family = optionValue === 'memory-optimized'
+          ? 'memory-optimized'
+          : optionValue.startsWith('sql-')
+            ? 'sql'
+            : optionValue.startsWith('postgres-')
+              ? 'postgres'
+              : 'mongo';
+        const nextValues = existingValues.includes(optionValue)
+          ? existingValues.filter((value) => value !== optionValue)
+          : [
+              ...existingValues.filter((value) => {
+                if (value === 'not-applicable') {
+                  return false;
+                }
+
+                if (family === 'memory-optimized') {
+                  return value !== 'memory-optimized';
+                }
+
+                return !value.startsWith(`${family}-`);
+              }),
+              optionValue
+            ];
+
+        return {
+          ...current,
+          databasePerformance: nextValues.length ? nextValues : []
+        };
+      }
+
+      const nextValues = optionValue === 'none' && !existingValues.includes('none')
+        ? ['none']
+        : existingValues.includes(optionValue)
+          ? existingValues.filter((value) => value !== optionValue)
+          : [...existingValues.filter((value) => value !== 'none'), optionValue];
 
       return {
         ...current,
-        [questionId]: optionValue === 'none' && !existingValues.includes('none') ? ['none'] : nextValues
+        [questionId]: nextValues.length ? nextValues : questionId === 'appServiceWorkloads' ? ['none'] : []
       };
     });
   };
@@ -832,7 +916,7 @@ function App() {
             </article>
             <article>
               <span>{ui.databaseSku}</span>
-              <strong>{result.databasePlan?.sku ?? 'N/A'}</strong>
+              <strong>{result.databaseSummarySku}</strong>
             </article>
             <article>
               <span>{ui.monthlyEstimate}</span>
@@ -898,6 +982,12 @@ function App() {
               <span>{ui.externalIps}</span>
               <textarea value={projectProfile.externalIps} onChange={(event) => handleProfileChange('externalIps', event.target.value)} placeholder={ui.draftIps} />
             </label>
+            {['app-service', 'mixed'].includes(answers.computePlatform) ? (
+              <label className="full-span">
+                <span>{ui.appServiceDescription}</span>
+                <textarea value={projectProfile.appServiceDescription} onChange={(event) => handleProfileChange('appServiceDescription', event.target.value)} placeholder={ui.draftAppServiceDescription} />
+              </label>
+            ) : null}
           </div>
 
           {Object.entries(groupedQuestions).map(([section, questions]) => {
@@ -1034,6 +1124,8 @@ function App() {
                   <span className="priority priority-建議">{result.appServiceConfig.plan}</span>
                 </div>
                 <small>{`Runtime: ${result.appServiceConfig.runtime}`}</small>
+                <small>{`Workloads: ${result.appServiceWorkloadProfile.labels.join('、') || ui.notSpecified}`}</small>
+                {result.appServiceWorkloadProfile.description ? <small>{result.appServiceWorkloadProfile.description}</small> : null}
               </article>
               <article className="insight-card compact-card">
                 <div className="insight-title-row">
@@ -1061,20 +1153,30 @@ function App() {
 
           <section className="report-section">
             <h3>{ui.databasePlan}</h3>
-            <article className="insight-card">
-              <div className="insight-title-row">
-                <strong>{result.databasePlan?.label ?? ui.noDatabase}</strong>
-                <span className="priority priority-建議">{result.databasePlan?.sku ?? 'N/A'}</span>
-              </div>
-              <p>{result.databasePlan?.note ?? ui.noDatabaseNote}</p>
-              <div className="insight-meta">
-                <span>{result.databasePlan?.engine ?? '無'}</span>
-                <span>{result.databasePlan?.sizing ?? '未指定容量'}</span>
-                <span>{result.databasePlan?.accessMode ?? '未指定存取模式'}</span>
-                <span>{`${ui.databasePerformance} ${result.databasePlan?.performanceModel ?? ui.notSpecified}`}</span>
-                <span>{`${ui.databaseBackup} ${result.databasePlan?.backupPolicy ?? ui.notSpecified}`}</span>
-              </div>
-            </article>
+            {result.databasePlans.length ? result.databasePlans.map((plan) => (
+              <article key={plan.id} className="insight-card">
+                <div className="insight-title-row">
+                  <strong>{plan.label}</strong>
+                  <span className="priority priority-建議">{plan.sku}</span>
+                </div>
+                <p>{plan.note}</p>
+                <div className="insight-meta">
+                  <span>{plan.engine}</span>
+                  <span>{plan.sizing}</span>
+                  <span>{plan.accessMode}</span>
+                  <span>{`${ui.databasePerformance} ${plan.performanceModel}`}</span>
+                  <span>{`${ui.databaseBackup} ${plan.backupPolicy}`}</span>
+                </div>
+              </article>
+            )) : (
+              <article className="insight-card">
+                <div className="insight-title-row">
+                  <strong>{ui.noDatabase}</strong>
+                  <span className="priority priority-建議">N/A</span>
+                </div>
+                <p>{ui.noDatabaseNote}</p>
+              </article>
+            )}
           </section>
 
           <section className="report-section">
